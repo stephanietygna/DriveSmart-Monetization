@@ -17,6 +17,8 @@ type SmartContract struct {
 
 // VehicleData representa os dados do veículo
 type VehicleData struct {
+	Latitude   string `json:"latitude"`
+	Longitude  string `json:"longitude"`
 	Speed      string `json:"speed"`
 	Direction  string `json:"direction"`
 	TimeStamps string `json:"timestamps"`
@@ -41,9 +43,29 @@ func ConvertStringToFloatSlice(data string) ([]float64, error) {
 }
 
 // StoreVehicleData armazena os dados do veículo no ledger
-func (s *SmartContract) StoreVehicleData(ctx contractapi.TransactionContextInterface, idcarro string, speedStr string, directionStr string, timestampStr string) error {
+func (s *SmartContract) StoreVehicleData(ctx contractapi.TransactionContextInterface, idcarro string, latitudeStr string, longitudeStr string, speedStr string, timestampStr string) error {
+	// Recuperar dados anteriores para calcular a direção
+	previousDataJSON, err := ctx.GetStub().GetState(idcarro)
+	if err != nil {
+		return fmt.Errorf("falha ao ler os dados do veículo do ledger: %s", err)
+	}
+
+	var previousData VehicleData
+	if previousDataJSON != nil {
+		err = json.Unmarshal(previousDataJSON, &previousData)
+		if err != nil {
+			return fmt.Errorf("falha ao desserializar os dados do veículo: %s", err)
+		}
+		
+		// Calcular a direção
+		direction, err := CalculateBearing(previousData.Latitude, previousData.Longitude, latitudeStr, longitudeStr)
+		if err != nil {
+			return fmt.Errorf("falha ao calcular a direção: %s", err)
+		}
 	// Criar a estrutura VehicleData
 	vehicleData := VehicleData{
+		Latitude:   latitudeStr,
+		Longitude:  longitudeStr,
 		Speed:      speedStr,
 		Direction:  directionStr,
 		TimeStamps: timestampStr,
@@ -58,6 +80,28 @@ func (s *SmartContract) StoreVehicleData(ctx contractapi.TransactionContextInter
 	err = ctx.GetStub().PutState(idcarro, vehicleDataJSON)
 	if err != nil {
 		return fmt.Errorf("falha ao armazenar os dados do veículo no ledger: %s", err)
+	}
+
+	} else {
+		// Se não há dados anteriores, armazenar apenas a latitude e longitude
+		vehicleData := VehicleData{
+			Latitude:   latitudeStr,
+			Longitude:  longitudeStr,
+			Speed:      speedStr,
+			Direction:  "0", // Inicialmente, a direção pode ser 0
+			TimeStamps: timestampStr,
+		}
+
+		// Armazenar os dados no ledger
+		vehicleDataJSON, err := json.Marshal(vehicleData)
+		if err != nil {
+			return fmt.Errorf("falha ao serializar os dados do veículo: %s", err)
+		}
+
+		err = ctx.GetStub().PutState(idcarro, vehicleDataJSON)
+		if err != nil {
+			return fmt.Errorf("falha ao armazenar os dados do veículo no ledger: %s", err)
+		}
 	}
 
 	return nil
@@ -384,6 +428,20 @@ func (s *SmartContract) DetectSharpTurn(ctx contractapi.TransactionContextInterf
 	}
 
 	return ctx.GetStub().PutState(compositeKey, vehicleWalletJSON)
+}
+// CalculateBearing calcula a direção entre dois pontos geográficos
+func CalculateBearing(lat1, lon1, lat2, lon2 float64) float64 {
+	deltaLon := lon2 - lon1
+
+	x := math.Cos(lat2*math.Pi/180) * math.Sin(deltaLon*math.Pi/180)
+	y := math.Cos(lat1*math.Pi/180)*math.Sin(lat2*math.Pi/180) - 
+		math.Sin(lat1*math.Pi/180)*math.Cos(lat2*math.Pi/180)*math.Cos(deltaLon*math.Pi/180)
+
+	bearing := math.Atan2(x, y) * 180 / math.Pi
+	if bearing < 0 {
+		bearing += 360
+	}
+	return bearing
 }
 
 
