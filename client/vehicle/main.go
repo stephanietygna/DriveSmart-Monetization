@@ -195,6 +195,14 @@ func randomString(length int) string {
 	return fmt.Sprintf("%x", b)[:length]
 }
 
+// Função para converter timestamps no formato HH:MM:SS para segundos totais
+func convertToSeconds(timeStr string) int {
+	parsedTime, err := time.Parse("15:04:05", timeStr)
+	if err != nil {
+		log.Fatalf("Erro ao converter o timestamp para segundos: %s", err)
+	}
+	return parsedTime.Hour()*3600 + parsedTime.Minute()*60 + parsedTime.Second()
+}
 func ReadCSV() ([]string, []string, []string) {
 	// Abrir o arquivo CSV
 	file, err := os.Open("data.csv")
@@ -222,6 +230,8 @@ func ReadCSV() ([]string, []string, []string) {
 		if len(record) < 3 {
 			continue // Ignorar linhas incompletas
 		}
+		// Converter o tempo para segundos
+		timeInSeconds := convertToSeconds(record[0])
 		timeSlice = append(timeSlice, record[0])
 		speedSlice = append(speedSlice, record[1])
 		directionSlice = append(directionSlice, record[2])
