@@ -224,4 +224,3 @@ func ReadCSV() ([]string, []string, []string) {
 
 	return timeSlice, speedSlice, directionSlice
 }
-
