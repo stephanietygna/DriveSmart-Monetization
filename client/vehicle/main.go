@@ -203,6 +203,7 @@ func convertToSeconds(timeStr string) int {
 	}
 	return parsedTime.Hour()*3600 + parsedTime.Minute()*60 + parsedTime.Second()
 }
+
 func ReadCSV() ([]string, []string, []string) {
 	// Abrir o arquivo CSV
 	file, err := os.Open("data.csv")
@@ -242,5 +243,12 @@ func ReadCSV() ([]string, []string, []string) {
 	// fmt.Println("Speed Slice:", speedSlice)
 	// fmt.Println("Direction Slice:", directionSlice)
 
-	return timeSlice, speedSlice, directionSlice
+		return timeSlice, speedSlice, directionSlice
+	}
+
+	func randomString(length int) string {
+	rand.Seed(time.Now().UnixNano())
+	b := make([]byte, length)
+	rand.Read(b)
+	return fmt.Sprintf("%x", b)[:length]
 }
