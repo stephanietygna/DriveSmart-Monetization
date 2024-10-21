@@ -17,7 +17,6 @@ import (
 )
 
 func main() {
-	//configFilePath := os.Args[1]
 	configFilePath := "connection-org.yaml"
 	channelName := "demo"
 	mspID := "INMETROMSP"
@@ -30,162 +29,147 @@ func main() {
 	log.SetOutput(file)
 
 	enrollID := randomString(10)
-	// enrollID := "admin"
 	registerEnrollUser(configFilePath, enrollID, mspID)
 
 	timeSlice, speedSlice, directionSlice := ReadCSV()
+
+	// Converte slices para string para invocação
 	time := strings.Join(timeSlice, " ")
 	speed := strings.Join(speedSlice, " ")
 	direction := strings.Join(directionSlice, " ")
 
-	_ = time
-	_ = speed
-	_ = direction
-
-
-	// invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "StoreVehicleData", []string{
-	// 	"ABC1234",
-	// 	time,
-	// 	direction,
-	// 	speed,
-	// })
-
-	// queryCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "QueryVehicleData", []string{"ABC1234"})
-
-	// invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "CreateVehicleWallet", []string{"ABC1234"})
-	// queryCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "QueryVehicleWallet", []string{"ABC1234"})
-
-	// invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "DetectAnomalousAcceleration", []string{"ABC1234"})
-	// queryCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "QueryVehicleWallet", []string{"ABC1234"})
-
-	// invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "DetectZigZag", []string{"ABC1234"})
-	// queryCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "QueryVehicleWallet", []string{"ABC1234"})
-
 	invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "DetectSharpTurn", []string{"ABC1234"})
 	queryCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "QueryVehicleWallet", []string{"ABC1234"})
-
 }
 
 func registerEnrollUser(configFilePath, enrollID, mspID string) {
 	log.Info("Registering User : ", enrollID)
 	sdk, err := fabsdk.New(config.FromFile(configFilePath))
+	if err != nil {
+		log.Error("Failed to create SDK: %s\n", err)
+		return
+	}
 	ctx := sdk.Context()
-	caClient, err := mspclient.New(
-		ctx,
-		mspclient.WithCAInstance("inmetro-ca.default"),
-		mspclient.WithOrg(mspID),
-	)
-
+	caClient, err := mspclient.New(ctx, mspclient.WithCAInstance("inmetro-ca.default"), mspclient.WithOrg(mspID))
 	if err != nil {
 		log.Error("Failed to create msp client: %s\n", err)
+		return
 	}
 
-	if caClient != nil {
-		log.Info("ca client created")
-	}
+	log.Info("ca client created")
 	enrollmentSecret, err := caClient.Register(&mspclient.RegistrationRequest{
 		Name:           enrollID,
 		Type:           "client",
 		MaxEnrollments: -1,
 		Affiliation:    "",
-		// CAName:         "INMETROMSP",
-		Attributes: nil,
-		Secret:     enrollID,
+		Secret:         enrollID,
 	})
 	if err != nil {
-		//fmt.Println("VERIFICAÇÃO")
 		log.Error(err)
+		return
 	}
-	err = caClient.Enroll(
-		enrollID,
-		mspclient.WithSecret(enrollmentSecret),
-		mspclient.WithProfile("tls"),
-	)
+
+	err = caClient.Enroll(enrollID, mspclient.WithSecret(enrollmentSecret), mspclient.WithProfile("tls"))
 	if err != nil {
 		log.Error(errors.WithMessage(err, "failed to register identity"))
+		return
 	}
 
 	wallet, err := gateway.NewFileSystemWallet(fmt.Sprintf("wallet/%s", mspID))
+	if err != nil {
+		log.Error("Failed to create wallet: %s", err)
+		return
+	}
 
 	signingIdentity, err := caClient.GetSigningIdentity(enrollID)
+	if err != nil {
+		log.Error("Failed to get signing identity: %s", err)
+		return
+	}
+
 	key, err := signingIdentity.PrivateKey().Bytes()
+	if err != nil {
+		log.Error("Failed to get private key: %s", err)
+		return
+	}
 	identity := gateway.NewX509Identity(mspID, string(signingIdentity.EnrollmentCertificate()), string(key))
 
 	err = wallet.Put(enrollID, identity)
 	if err != nil {
 		log.Error(err)
 	}
-
 }
-func invokeCCgw(configFilePath, channelName, userName, mspID, chaincodeName, fcn string, params []string) {
 
+func invokeCCgw(configFilePath, channelName, userName, mspID, chaincodeName, fcn string, params []string) {
 	configBackend := config.FromFile(configFilePath)
 	sdk, err := fabsdk.New(configBackend)
 	if err != nil {
 		log.Error(err)
+		return
 	}
 
 	wallet, err := gateway.NewFileSystemWallet(fmt.Sprintf("wallet/%s", mspID))
+	if err != nil {
+		log.Error("Failed to create wallet: %s", err)
+		return
+	}
 
-	gw, err := gateway.Connect(
-		gateway.WithSDK(sdk),
-		gateway.WithUser(userName),
-		gateway.WithIdentity(wallet, userName),
-	)
+	gw, err := gateway.Connect(gateway.WithSDK(sdk), gateway.WithUser(userName), gateway.WithIdentity(wallet, userName))
 	if err != nil {
 		log.Error("Failed to create new Gateway: %s", err)
+		return
 	}
 	defer gw.Close()
+
 	nw, err := gw.GetNetwork(channelName)
 	if err != nil {
 		log.Error("Failed to get network: %s", err)
+		return
 	}
 
 	contract := nw.GetContract(chaincodeName)
-
 	resp, err := contract.SubmitTransaction(fcn, params...)
-
 	if err != nil {
 		log.Error("Failed submit transaction: %s", err)
+		return
 	}
 	log.Info(resp)
-
 }
 
 func queryCCgw(configFilePath, channelName, userName, mspID, chaincodeName, fcn string, args []string) {
-
 	configBackend := config.FromFile(configFilePath)
 	sdk, err := fabsdk.New(configBackend)
 	if err != nil {
 		log.Error(err)
+		return
 	}
 
 	wallet, err := gateway.NewFileSystemWallet(fmt.Sprintf("wallet/%s", mspID))
+	if err != nil {
+		log.Error("Failed to create wallet: %s", err)
+		return
+	}
 
-	gw, err := gateway.Connect(
-		gateway.WithSDK(sdk),
-		gateway.WithUser(userName),
-		gateway.WithIdentity(wallet, userName),
-	)
-
+	gw, err := gateway.Connect(gateway.WithSDK(sdk), gateway.WithUser(userName), gateway.WithIdentity(wallet, userName))
 	if err != nil {
 		log.Error("Failed to create new Gateway: %s", err)
+		return
 	}
 	defer gw.Close()
+
 	nw, err := gw.GetNetwork(channelName)
 	if err != nil {
 		log.Error("Failed to get network: %s", err)
+		return
 	}
 
 	contract := nw.GetContract(chaincodeName)
-
 	resp, err := contract.EvaluateTransaction(fcn, args...)
-
 	if err != nil {
 		log.Error("Failed submit transaction: %s", err)
+		return
 	}
 	log.Info(string(resp))
-
 }
 
 func randomString(length int) string {
@@ -233,22 +217,11 @@ func ReadCSV() ([]string, []string, []string) {
 		}
 		// Converter o tempo para segundos
 		timeInSeconds := convertToSeconds(record[0])
-		timeSlice = append(timeSlice, record[0])
+		timeSlice = append(timeSlice, fmt.Sprintf("%d", timeInSeconds))
 		speedSlice = append(speedSlice, record[1])
 		directionSlice = append(directionSlice, record[2])
 	}
 
-	// Imprimir os slices
-	// fmt.Println("Time Slice:", timeSlice)
-	// fmt.Println("Speed Slice:", speedSlice)
-	// fmt.Println("Direction Slice:", directionSlice)
-
-		return timeSlice, speedSlice, directionSlice
-	}
-
-	func randomString(length int) string {
-	rand.Seed(time.Now().UnixNano())
-	b := make([]byte, length)
-	rand.Read(b)
-	return fmt.Sprintf("%x", b)[:length]
+	return timeSlice, speedSlice, directionSlice
 }
+
