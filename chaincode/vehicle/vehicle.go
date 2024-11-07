@@ -20,7 +20,8 @@ type VehicleData struct {
 	Latitude   string `json:"latitude"`
 	Longitude  string `json:"longitude"`
 	Speed      string `json:"speed"`
-	Direction  string `json:"direction"`
+	AccelX     string `json:"accelX"`  //zigue-zague
+	AccelY     string `json:"accelY"`  //zigue-zague
 	TimeStamps string `json:"timestamps"`
 }
 
@@ -250,9 +251,8 @@ func (s *SmartContract) DetectAnomalousAcceleration(ctx contractapi.TransactionC
 	return "", ctx.GetStub().PutState(compositeKey, vehicleWalletJSON)
 }
 
-// Função para detectar comportamento de zigue-zague
 func (s *SmartContract) DetectZigZag(ctx contractapi.TransactionContextInterface, idcarro string) error {
-	// Recuperar os dados do veículo do ledger
+	// Recupera os dados do veículo a partir do ledger
 	vehicleDataJSON, err := ctx.GetStub().GetState(idcarro)
 	if err != nil {
 		return fmt.Errorf("falha ao ler os dados do veículo do ledger: %s", err)
@@ -267,83 +267,71 @@ func (s *SmartContract) DetectZigZag(ctx contractapi.TransactionContextInterface
 		return fmt.Errorf("falha ao desserializar os dados do veículo: %s", err)
 	}
 
-	zigZagCount := 0
+	// Inicializa as variáveis
+	var prevAccelX, prevAccelY float64
+	var zigzagCount int
 
-	// Separar as direções
-	directions := strings.Fields(vehicleData.Direction)
+	// Verifica se os dados de aceleração foram armazenados como uma string
+	accelData := vehicleData.AccelData // Supondo que AccelData seja uma string "accelX_value accelY_value"
 
-	// Verifica se há pelo menos 2 direções para comparar
-	if len(directions) < 2 {
-		return fmt.Errorf("não há dados suficientes para detectar zigue-zague")
+	// Se os dados de aceleração estiverem ausentes, retorna erro
+	if accelData == "" {
+		return fmt.Errorf("dados de aceleração não encontrados")
 	}
 
-	for i := 1; i < len(directions); i++ {
-		// Converter a direção atual
-		directionCurrent, err := strconv.ParseFloat(directions[i], 64)
+	// Separa a string de aceleração em valores de aceleração X e Y
+	accelValues := strings.Fields(accelData) // Divide a string em partes, por exemplo: ["accelX_value", "accelY_value"]
+	if len(accelValues) != 2 {
+		return fmt.Errorf("formato inválido de dados de aceleração")
+	}
+
+	// Converte os valores de aceleração para float64
+	accelX, err := strconv.ParseFloat(accelValues[0], 64)
+	if err != nil {
+		return fmt.Errorf("erro ao converter aceleração X: %s", err.Error())
+	}
+
+	accelY, err := strconv.ParseFloat(accelValues[1], 64)
+	if err != nil {
+		return fmt.Errorf("erro ao converter aceleração Y: %s", err.Error())
+	}
+
+	// Compara os valores de aceleração para detectar zigue-zague
+	if math.Abs(accelX-prevAccelX) > threshold || math.Abs(accelY-prevAccelY) > threshold {
+		zigzagCount++
+	}
+
+	// Atualiza os valores anteriores de aceleração
+	prevAccelX = accelX
+	prevAccelY = accelY
+
+	// Se o número de zigue-zagues for maior ou igual a 3, aplica penalização
+	if zigzagCount >= 3 {
+		// Aplique penalização na carteira do veículo
+		vehicleWallet, err := GetVehicleWallet(ctx, idcarro)
 		if err != nil {
-			fmt.Println("Erro ao converter direção atual:", err)
-			continue // Pular caso haja erro na conversão
+			return err
 		}
 
-		// Converter a direção anterior
-		directionPrevious, err := strconv.ParseFloat(directions[i-1], 64)
+		// Penalização nos créditos do veículo
+		vehicleWallet.Credits -= penaltyAmount
+
+		// Atualiza os dados da carteira no ledger
+		vehicleWalletJSON, err := json.Marshal(vehicleWallet)
 		if err != nil {
-			fmt.Println("Erro ao converter direção anterior:", err)
-			continue // Pular caso haja erro na conversão
+			return fmt.Errorf("erro ao serializar os dados da carteira: %s", err.Error())
 		}
 
-		// Verifica se a direção mudou de positivo para negativo ou vice-versa
-		if directionCurrent*directionPrevious < 0 {
-			zigZagCount++
+		err = ctx.GetStub().PutState(idcarro, vehicleWalletJSON)
+		if err != nil {
+			return fmt.Errorf("erro ao atualizar dados da carteira do veículo: %s", err.Error())
 		}
+
+		return fmt.Errorf("Zigue-zague detectado! Penalização aplicada. Créditos restantes: %f", vehicleWallet.Credits)
 	}
 
-	credits := 0
-	infringement := false
-
-	// Definindo 3 mudanças de faixa como zigue-zague
-	if zigZagCount >= 3 {
-		infringement = true
-		credits = -40
-	} else {
-		credits = 10
-		infringement = false
-	}
-
-	log.Printf("Zigue-zague:", infringement, "Créditos:", credits)
-
-	indexName := "WALLET"
-	compositeKey, err := ctx.GetStub().CreateCompositeKey(indexName, []string{idcarro})
-	if err != nil {
-		return err
-	}
-
-	vehicleWalletAsBytes, err := ctx.GetStub().GetState(compositeKey)
-	if err != nil {
-		return fmt.Errorf("failed to read from world state: %s", err)
-	}
-
-	if vehicleWalletAsBytes == nil {
-		return fmt.Errorf("carteira do veículo não encontrada")
-	}
-
-	// atualiza vehiclewallet com a penalidade de -40 créditos
-	var vehicleWallet VehicleWallet
-	_ = json.Unmarshal(vehicleWalletAsBytes, &vehicleWallet)
-
-	currentCredits, err := strconv.Atoi(vehicleWallet.Credits)
-	if err != nil {
-		return fmt.Errorf("falha ao converter créditos atuais: %s", err)
-	}
-	vehicleWallet.Credits = strconv.Itoa(currentCredits + credits)
-	vehicleWalletJSON, err := json.Marshal(vehicleWallet)
-
-	if err != nil {
-		return fmt.Errorf("falha ao serializar a carteira do veículo: %s", err)
-	}
-
-	return ctx.GetStub().PutState(compositeKey, vehicleWalletJSON)
-
+	// Caso contrário, o veículo está dirigindo de forma aceitável
+	return fmt.Errorf("Condução normal, sem zigue-zague detectado")
 }
 
 // Função para detectar mudanças bruscas de direção
