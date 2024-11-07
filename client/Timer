@@ -1,21 +1,22 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
-	"time"
 	"math"
-	
-	"github.com/hyperledger/fabric-sdk-go/pkg/gateway" // Certifique-se de configurar o SDK corretamente.
+	"time"
+
+	"github.com/hyperledger/fabric-sdk-go/pkg/gateway"
 )
 
 const (
-	channelName   = "mychannel"      // Nome do canal do Hyperledger Fabric.
-	contractName  = "vehicleContract" // Nome do contrato.
-	queryInterval = 10 * time.Minute  // Intervalo de execução a cada 10 minutos.
-	zigzagThreshold = 5               // Número de mudanças de faixa considerado zigue-zague.
-	accelerationThreshold = 30.0      // Threshold para aceleração anômala (variação de velocidade > 30 km/h).
-	steeringThreshold = 0.7           // Threshold para mudanças bruscas de direção (rad > 0,7).
+	channelName           = "mychannel"       // Nome do canal do Hyperledger Fabric.
+	contractName          = "vehicleContract" // Nome do contrato.
+	queryInterval         = 10 * time.Minute  // Intervalo de execução a cada 10 minutos.
+	zigzagThreshold       = 5                 // Número de mudanças de faixa considerado zigue-zague.
+	accelerationThreshold = 30.0              // Threshold para aceleração anômala (variação de velocidade > 30 km/h).
+	steeringThreshold     = 0.7               // Threshold para mudanças bruscas de direção (rad > 0,7).
 )
 
 type VehicleData struct {
@@ -23,6 +24,7 @@ type VehicleData struct {
 	Speed         float64 `json:"speed"`
 	Direction     float64 `json:"direction"`
 	LaneChanges   int     `json:"laneChanges"`
+	Processed     bool    `json:"processed"`
 }
 
 func main() {
@@ -52,55 +54,80 @@ func main() {
 	for {
 		select {
 		case <-ticker.C:
-			processVehicleData(contract)
+			processPendingVehicleData(contract)
 		}
 	}
 }
 
-func processVehicleData(contract *gateway.Contract) {
-	// Buscar lista de veículos na blockchain
-	result, err := contract.EvaluateTransaction("GetUnprocessedVehicleData")
+func processPendingVehicleData(contract *gateway.Contract) {
+	// Buscar lista de IDs de veículos com dados pendentes
+	vehicleIDsResult, err := contract.EvaluateTransaction("GetVehicleIDsWithPendingData")
 	if err != nil {
-		log.Printf("Erro ao buscar dados do veículo: %v", err)
+		log.Printf("Erro ao buscar IDs de veículos com dados pendentes: %v", err)
 		return
 	}
 
-	// Deserializar os dados do veículo (conforme estrutura do contrato inteligente)
-	vehicles, err := parseVehicleData(result)
+	var vehicleIDs []string
+	err = json.Unmarshal(vehicleIDsResult, &vehicleIDs)
 	if err != nil {
-		log.Printf("Erro ao parsear dados: %v", err)
+		log.Printf("Erro ao parsear lista de IDs: %v", err)
 		return
 	}
 
-	for _, vehicle := range vehicles {
-		// Avaliação de aceleração
-		anomalousAcceleration := checkAcceleration(vehicle)
-		// Avaliação de direção brusca
-		sharpTurns := checkSteering(vehicle)
-		// Avaliação de zigue-zague
-		zigzagBehavior := checkZigzag(vehicle)
+	for _, vehicleID := range vehicleIDs {
+		processDataForVehicle(contract, vehicleID)
+	}
+}
 
-		// Salvar resultados na blockchain
-		err = saveAnalysisResult(contract, vehicle.ID, anomalousAcceleration, sharpTurns, zigzagBehavior)
+func processDataForVehicle(contract *gateway.Contract, vehicleID string) {
+	// Buscar dados não processados específicos do veículo
+	result, err := contract.EvaluateTransaction("GetUnprocessedDataByVehicleID", vehicleID)
+	if err != nil {
+		log.Printf("Erro ao buscar dados para veículo %s: %v", vehicleID, err)
+		return
+	}
+
+	var vehicleDataList []VehicleData
+	err = json.Unmarshal(result, &vehicleDataList)
+	if err != nil {
+		log.Printf("Erro ao parsear dados do veículo %s: %v", vehicleID, err)
+		return
+	}
+
+	// Avaliar cada conjunto de dados não processados para o veículo
+	for _, data := range vehicleDataList {
+		// Avaliação das regras
+		anomalousAcceleration := checkAcceleration(data)
+		sharpTurns := checkSteering(data)
+		zigzagBehavior := checkZigzag(data)
+
+		// Salvar resultados de análise para cada conjunto de dados processado
+		err = saveAnalysisResult(contract, data.ID, anomalousAcceleration, sharpTurns, zigzagBehavior)
 		if err != nil {
-			log.Printf("Erro ao salvar análise para veículo %s: %v", vehicle.ID, err)
+			log.Printf("Erro ao salvar análise para dados do veículo %s: %v", vehicleID, err)
 		}
+	}
+
+	// Marcar os dados do veículo como processados
+	err = markDataAsProcessed(contract, vehicleID)
+	if err != nil {
+		log.Printf("Erro ao marcar dados do veículo %s como processados: %v", vehicleID, err)
 	}
 }
 
-func checkAcceleration(vehicle VehicleData) bool {
+func checkAcceleration(vehicleData VehicleData) bool {
 	// Verifica se a variação de velocidade excede o limite de aceleração anômala
-	return vehicle.Speed > accelerationThreshold
+	return vehicleData.Speed > accelerationThreshold
 }
 
-func checkSteering(vehicle VehicleData) bool {
+func checkSteering(vehicleData VehicleData) bool {
 	// Verifica se a direção muda bruscamente
-	return math.Abs(vehicle.Direction) > steeringThreshold
+	return math.Abs(vehicleData.Direction) > steeringThreshold
 }
 
-func checkZigzag(vehicle VehicleData) bool {
+func checkZigzag(vehicleData VehicleData) bool {
 	// Verifica se o número de mudanças de faixa excede o limite de zigue-zague
-	return vehicle.LaneChanges > zigzagThreshold
+	return vehicleData.LaneChanges > zigzagThreshold
 }
 
 func saveAnalysisResult(contract *gateway.Contract, vehicleID string, anomalousAcceleration, sharpTurns, zigzagBehavior bool) error {
@@ -124,13 +151,12 @@ func saveAnalysisResult(contract *gateway.Contract, vehicleID string, anomalousA
 	return nil
 }
 
-func parseVehicleData(data []byte) ([]VehicleData, error) {
-	// Função para converter os dados JSON do blockchain em uma lista de objetos VehicleData
-	var vehicles []VehicleData
-	err := json.Unmarshal(data, &vehicles)
+func markDataAsProcessed(contract *gateway.Contract, vehicleID string) error {
+	// Marcar todos os dados como processados para o veículo específico
+	_, err := contract.SubmitTransaction("MarkDataAsProcessed", vehicleID)
 	if err != nil {
-		return nil, fmt.Errorf("erro ao desserializar dados do veículo: %v", err)
+		return fmt.Errorf("falha ao marcar dados do veículo %s como processados: %v", vehicleID, err)
 	}
-	return vehicles, nil
+	log.Printf("Dados marcados como processados para o veículo %s", vehicleID)
+	return nil
 }
-
