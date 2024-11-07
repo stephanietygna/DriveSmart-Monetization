@@ -17,18 +17,19 @@ type SmartContract struct {
 
 // VehicleData representa os dados do veículo
 type VehicleData struct {
-	Latitude   string `json:"latitude"`
-	Longitude  string `json:"longitude"`
-	Speed      string `json:"speed"`
+	Latitude   string `json:"latitude"` // Mudança Brusca de Direção
+	Longitude  string `json:"longitude"` // Mudança Brusca de Direção
+	Speed      string `json:"speed"`   // Detecção de Aceleração Anômala // Mudança Brusca de Direção
 	AccelX     string `json:"accelX"`  //zigue-zague
 	AccelY     string `json:"accelY"`  //zigue-zague
-	TimeStamps string `json:"timestamps"`
+	AccelZ     string `json:"accelY"`  //zigue-zague // A aceleração em Z pode ser útil para detectar comportamentos relacionados a movimentos verticais // como subidas, descidas ou saltos, especialmente em terrenos irregulares.
+	TimeStamps string `json:"timestamps"` //Detecção de Aceleração Anômala
 }
 
 type VehicleWallet struct { // pk: idcarro
 	Credits string `json:"credits"`
 }
-
+eu entender
 // ConvertStringToFloatSlice converte uma string de números separados por espaço em um slice de float64
 func ConvertStringToFloatSlice(data string) ([]float64, error) {
 	parts := strings.Fields(data)
@@ -68,7 +69,9 @@ func (s *SmartContract) StoreVehicleData(ctx contractapi.TransactionContextInter
 		Latitude:   latitudeStr,
 		Longitude:  longitudeStr,
 		Speed:      speedStr,
-		Direction:  directionStr,
+		AccelX:     accelxStr,
+		AccelY:     accelyStr
+		AccelZ:     accelzStr,
 		TimeStamps: timestampStr,
 	}
 
@@ -251,8 +254,9 @@ func (s *SmartContract) DetectAnomalousAcceleration(ctx contractapi.TransactionC
 	return "", ctx.GetStub().PutState(compositeKey, vehicleWalletJSON)
 }
 
+// Função para detectar comportamento de zigue-zague
 func (s *SmartContract) DetectZigZag(ctx contractapi.TransactionContextInterface, idcarro string) error {
-	// Recupera os dados do veículo a partir do ledger
+	// Recuperar os dados do veículo do ledger
 	vehicleDataJSON, err := ctx.GetStub().GetState(idcarro)
 	if err != nil {
 		return fmt.Errorf("falha ao ler os dados do veículo do ledger: %s", err)
@@ -268,42 +272,36 @@ func (s *SmartContract) DetectZigZag(ctx contractapi.TransactionContextInterface
 	}
 
 	// Inicializa as variáveis
-	var prevAccelX, prevAccelY float64
+	var prevAccelX, prevAccelY, prevAccelZ string
 	var zigzagCount int
 
 	// Verifica se os dados de aceleração foram armazenados como uma string
-	accelData := vehicleData.AccelData // Supondo que AccelData seja uma string "accelX_value accelY_value"
+	accelData := vehicleData.AccelData // Supondo que AccelData seja uma string "accelX_value accelY_value accelZ_value"
 
 	// Se os dados de aceleração estiverem ausentes, retorna erro
 	if accelData == "" {
 		return fmt.Errorf("dados de aceleração não encontrados")
 	}
 
-	// Separa a string de aceleração em valores de aceleração X e Y
-	accelValues := strings.Fields(accelData) // Divide a string em partes, por exemplo: ["accelX_value", "accelY_value"]
-	if len(accelValues) != 2 {
+	// Separa a string de aceleração em valores de aceleração X, Y e Z
+	accelValues := strings.Fields(accelData) // Divide a string em partes, por exemplo: ["accelX_value", "accelY_value", "accelZ_value"]
+	if len(accelValues) != 3 {
 		return fmt.Errorf("formato inválido de dados de aceleração")
 	}
 
-	// Converte os valores de aceleração para float64
-	accelX, err := strconv.ParseFloat(accelValues[0], 64)
-	if err != nil {
-		return fmt.Errorf("erro ao converter aceleração X: %s", err.Error())
-	}
+	accelX := accelValues[0]
+	accelY := accelValues[1]
+	accelZ := accelValues[2]
 
-	accelY, err := strconv.ParseFloat(accelValues[1], 64)
-	if err != nil {
-		return fmt.Errorf("erro ao converter aceleração Y: %s", err.Error())
-	}
-
-	// Compara os valores de aceleração para detectar zigue-zague
-	if math.Abs(accelX-prevAccelX) > threshold || math.Abs(accelY-prevAccelY) > threshold {
+	// Compara os valores de aceleração para detectar zigue-zague (comparando as strings diretamente)
+	if accelX != prevAccelX || accelY != prevAccelY || accelZ != prevAccelZ {
 		zigzagCount++
 	}
 
 	// Atualiza os valores anteriores de aceleração
 	prevAccelX = accelX
 	prevAccelY = accelY
+	prevAccelZ = accelZ
 
 	// Se o número de zigue-zagues for maior ou igual a 3, aplica penalização
 	if zigzagCount >= 3 {
@@ -333,7 +331,7 @@ func (s *SmartContract) DetectZigZag(ctx contractapi.TransactionContextInterface
 	// Caso contrário, o veículo está dirigindo de forma aceitável
 	return fmt.Errorf("Condução normal, sem zigue-zague detectado")
 }
-
+	
 // Função para detectar mudanças bruscas de direção
 func (s *SmartContract) DetectSharpTurn(ctx contractapi.TransactionContextInterface, idcarro string) error {
 	// Recuperar os dados do veículo do ledger
