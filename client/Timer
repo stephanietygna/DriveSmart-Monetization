@@ -1,1 +1,136 @@
+package main
+
+import (
+	"fmt"
+	"log"
+	"time"
+	"math"
+	
+	"github.com/hyperledger/fabric-sdk-go/pkg/gateway" // Certifique-se de configurar o SDK corretamente.
+)
+
+const (
+	channelName   = "mychannel"      // Nome do canal do Hyperledger Fabric.
+	contractName  = "vehicleContract" // Nome do contrato.
+	queryInterval = 10 * time.Minute  // Intervalo de execução a cada 10 minutos.
+	zigzagThreshold = 5               // Número de mudanças de faixa considerado zigue-zague.
+	accelerationThreshold = 30.0      // Threshold para aceleração anômala (variação de velocidade > 30 km/h).
+	steeringThreshold = 0.7           // Threshold para mudanças bruscas de direção (rad > 0,7).
+)
+
+type VehicleData struct {
+	ID            string  `json:"id"`
+	Speed         float64 `json:"speed"`
+	Direction     float64 `json:"direction"`
+	LaneChanges   int     `json:"laneChanges"`
+}
+
+func main() {
+	// Configuração do gateway e do contrato
+	wallet, err := gateway.NewFileSystemWallet("wallet")
+	if err != nil {
+		log.Fatalf("Falha ao criar carteira: %v", err)
+	}
+
+	ccpPath := "/path/to/connection.yaml" // Defina o caminho para seu arquivo de configuração
+	gw, err := gateway.Connect(
+		gateway.WithConfig(gateway.FromFile(ccpPath)),
+		gateway.WithIdentity(wallet, "appUser"),
+	)
+	if err != nil {
+		log.Fatalf("Falha ao conectar ao gateway: %v", err)
+	}
+	defer gw.Close()
+
+	network := gw.GetNetwork(channelName)
+	contract := network.GetContract(contractName)
+
+	// Configuração do ticker para execução periódica
+	ticker := time.NewTicker(queryInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			processVehicleData(contract)
+		}
+	}
+}
+
+func processVehicleData(contract *gateway.Contract) {
+	// Buscar lista de veículos na blockchain
+	result, err := contract.EvaluateTransaction("GetUnprocessedVehicleData")
+	if err != nil {
+		log.Printf("Erro ao buscar dados do veículo: %v", err)
+		return
+	}
+
+	// Deserializar os dados do veículo (conforme estrutura do contrato inteligente)
+	vehicles, err := parseVehicleData(result)
+	if err != nil {
+		log.Printf("Erro ao parsear dados: %v", err)
+		return
+	}
+
+	for _, vehicle := range vehicles {
+		// Avaliação de aceleração
+		anomalousAcceleration := checkAcceleration(vehicle)
+		// Avaliação de direção brusca
+		sharpTurns := checkSteering(vehicle)
+		// Avaliação de zigue-zague
+		zigzagBehavior := checkZigzag(vehicle)
+
+		// Salvar resultados na blockchain
+		err = saveAnalysisResult(contract, vehicle.ID, anomalousAcceleration, sharpTurns, zigzagBehavior)
+		if err != nil {
+			log.Printf("Erro ao salvar análise para veículo %s: %v", vehicle.ID, err)
+		}
+	}
+}
+
+func checkAcceleration(vehicle VehicleData) bool {
+	// Verifica se a variação de velocidade excede o limite de aceleração anômala
+	return vehicle.Speed > accelerationThreshold
+}
+
+func checkSteering(vehicle VehicleData) bool {
+	// Verifica se a direção muda bruscamente
+	return math.Abs(vehicle.Direction) > steeringThreshold
+}
+
+func checkZigzag(vehicle VehicleData) bool {
+	// Verifica se o número de mudanças de faixa excede o limite de zigue-zague
+	return vehicle.LaneChanges > zigzagThreshold
+}
+
+func saveAnalysisResult(contract *gateway.Contract, vehicleID string, anomalousAcceleration, sharpTurns, zigzagBehavior bool) error {
+	result := map[string]interface{}{
+		"ID":                  vehicleID,
+		"AnomalousAcceleration": anomalousAcceleration,
+		"SharpTurns":            sharpTurns,
+		"ZigzagBehavior":        zigzagBehavior,
+	}
+	data, err := json.Marshal(result)
+	if err != nil {
+		return fmt.Errorf("falha ao serializar resultado: %v", err)
+	}
+
+	_, err = contract.SubmitTransaction("SaveAnalysisResult", string(data))
+	if err != nil {
+		return fmt.Errorf("falha ao salvar resultado no blockchain: %v", err)
+	}
+
+	log.Printf("Resultados processados e salvos para veículo %s", vehicleID)
+	return nil
+}
+
+func parseVehicleData(data []byte) ([]VehicleData, error) {
+	// Função para converter os dados JSON do blockchain em uma lista de objetos VehicleData
+	var vehicles []VehicleData
+	err := json.Unmarshal(data, &vehicles)
+	if err != nil {
+		return nil, fmt.Errorf("erro ao desserializar dados do veículo: %v", err)
+	}
+	return vehicles, nil
+}
 
