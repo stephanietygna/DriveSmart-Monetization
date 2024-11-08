@@ -3,11 +3,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"math"
 	"strconv"
 	"strings"
 
-	"github.com/emicklei/go-restful/v3/log"
+	// "github.com/emicklei/go-restful/v3/log"
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
 )
 
@@ -17,19 +18,20 @@ type SmartContract struct {
 
 // VehicleData representa os dados do veículo
 type VehicleData struct {
-	Latitude   string `json:"latitude"` // Mudança Brusca de Direção
-	Longitude  string `json:"longitude"` // Mudança Brusca de Direção
-	Speed      string `json:"speed"`   // Detecção de Aceleração Anômala // Mudança Brusca de Direção
-	AccelX     string `json:"accelX"`  //zigue-zague
-	AccelY     string `json:"accelY"`  //zigue-zague
-	AccelZ     string `json:"accelY"`  //zigue-zague // A aceleração em Z pode ser útil para detectar comportamentos relacionados a movimentos verticais // como subidas, descidas ou saltos, especialmente em terrenos irregulares.
+	Latitude   string `json:"latitude"`   // Mudança Brusca de Direção
+	Longitude  string `json:"longitude"`  // Mudança Brusca de Direção
+	Direction  string `json:"direction"`  // Mudança Brusca de Direção
+	Speed      string `json:"speed"`      // Detecção de Aceleração Anômala // Mudança Brusca de Direção
+	AccelX     string `json:"accelX"`     //zigue-zague
+	AccelY     string `json:"accelY"`     //zigue-zague
+	AccelZ     string `json:"accelZ"`     //zigue-zague // A aceleração em Z pode ser útil para detectar comportamentos relacionados a movimentos verticais // como subidas, descidas ou saltos, especialmente em terrenos irregulares.
 	TimeStamps string `json:"timestamps"` //Detecção de Aceleração Anômala
 }
 
 type VehicleWallet struct { // pk: idcarro
 	Credits string `json:"credits"`
 }
-eu entender
+
 // ConvertStringToFloatSlice converte uma string de números separados por espaço em um slice de float64
 func ConvertStringToFloatSlice(data string) ([]float64, error) {
 	parts := strings.Fields(data)
@@ -44,8 +46,9 @@ func ConvertStringToFloatSlice(data string) ([]float64, error) {
 	return result, nil
 }
 
+// MODIFICADO E TESTADO, FUNCIONAL
 // StoreVehicleData armazena os dados do veículo no ledger
-func (s *SmartContract) StoreVehicleData(ctx contractapi.TransactionContextInterface, idcarro string, latitudeStr string, longitudeStr string, speedStr string, timestampStr string) error {
+func (s *SmartContract) StoreVehicleData(ctx contractapi.TransactionContextInterface, idcarro string, unixTimestamp string, latitudeStr string, longitudeStr string, speedStr string, accelXstr string, accelYstr string, accelZstr string) error {
 	// Recuperar dados anteriores para calcular a direção
 	previousDataJSON, err := ctx.GetStub().GetState(idcarro)
 	if err != nil {
@@ -58,42 +61,59 @@ func (s *SmartContract) StoreVehicleData(ctx contractapi.TransactionContextInter
 		if err != nil {
 			return fmt.Errorf("falha ao desserializar os dados do veículo: %s", err)
 		}
-		
+
 		// Calcular a direção
-		direction, err := CalculateBearing(previousData.Latitude, previousData.Longitude, latitudeStr, longitudeStr)
+		latitude, err := strconv.ParseFloat(latitudeStr, 64)
 		if err != nil {
-			return fmt.Errorf("falha ao calcular a direção: %s", err)
+			return fmt.Errorf("falha ao converter latitude: %s", err)
 		}
-	// Criar a estrutura VehicleData
-	vehicleData := VehicleData{
-		Latitude:   latitudeStr,
-		Longitude:  longitudeStr,
-		Speed:      speedStr,
-		AccelX:     accelxStr,
-		AccelY:     accelyStr
-		AccelZ:     accelzStr,
-		TimeStamps: timestampStr,
-	}
+		longitude, err := strconv.ParseFloat(longitudeStr, 64)
+		if err != nil {
+			return fmt.Errorf("falha ao converter longitude: %s", err)
+		}
+		previousLatitude, err := strconv.ParseFloat(previousData.Latitude, 64)
+		if err != nil {
+			return fmt.Errorf("falha ao converter latitude anterior: %s", err)
+		}
+		previousLongitude, err := strconv.ParseFloat(previousData.Longitude, 64)
+		if err != nil {
+			return fmt.Errorf("falha ao converter longitude anterior: %s", err)
+		}
+		direction := CalculateBearing(previousLatitude, previousLongitude, latitude, longitude)
+		// Criar a estrutura VehicleData
+		vehicleData := VehicleData{
+			Latitude:   latitudeStr,
+			Longitude:  longitudeStr,
+			Direction:  fmt.Sprintf("%f", direction),
+			Speed:      speedStr,
+			AccelX:     accelXstr,
+			AccelY:     accelYstr,
+			AccelZ:     accelZstr,
+			TimeStamps: unixTimestamp,
+		}
 
-	// Armazenar os dados no ledger
-	vehicleDataJSON, err := json.Marshal(vehicleData)
-	if err != nil {
-		return fmt.Errorf("falha ao serializar os dados do veículo: %s", err)
-	}
+		// Armazenar os dados no ledger
+		vehicleDataJSON, err := json.Marshal(vehicleData)
+		if err != nil {
+			return fmt.Errorf("falha ao serializar os dados do veículo: %s", err)
+		}
 
-	err = ctx.GetStub().PutState(idcarro, vehicleDataJSON)
-	if err != nil {
-		return fmt.Errorf("falha ao armazenar os dados do veículo no ledger: %s", err)
-	}
+		err = ctx.GetStub().PutState(idcarro, vehicleDataJSON)
+		if err != nil {
+			return fmt.Errorf("falha ao armazenar os dados do veículo no ledger: %s", err)
+		}
 
 	} else {
 		// Se não há dados anteriores, armazenar apenas a latitude e longitude
 		vehicleData := VehicleData{
 			Latitude:   latitudeStr,
 			Longitude:  longitudeStr,
+			Direction:  "0", // inicialmente, a direção pode ser 0
 			Speed:      speedStr,
-			Direction:  "0", // Inicialmente, a direção pode ser 0
-			TimeStamps: timestampStr,
+			AccelX:     accelXstr,
+			AccelY:     accelYstr,
+			AccelZ:     accelZstr,
+			TimeStamps: unixTimestamp,
 		}
 
 		// Armazenar os dados no ledger
@@ -173,7 +193,8 @@ func (s *SmartContract) QueryVehicleWallet(ctx contractapi.TransactionContextInt
 	return &vehicleWallet, nil
 }
 
-// 	alousAcceleration verifica a anomalia e atualiza a carteira do veículo de acordo
+// NÃO TESTEI AINDA
+// DetectAnalousAcceleration verifica a anomalia e atualiza a carteira do veículo de acordo
 func (s *SmartContract) DetectAnomalousAcceleration(ctx contractapi.TransactionContextInterface, idcarro string) (string, error) {
 	// Recuperar os dados do veículo do ledger
 	vehicleDataJSON, err := ctx.GetStub().GetState(idcarro)
@@ -190,24 +211,50 @@ func (s *SmartContract) DetectAnomalousAcceleration(ctx contractapi.TransactionC
 		return "", fmt.Errorf("falha ao desserializar os dados do veículo: %s", err)
 	}
 
-	// Converter strings para slices de float64
-	speedSlice, err := ConvertStringToFloatSlice(vehicleData.Speed)
-	if err != nil {
-		return "", fmt.Errorf("falha ao converter velocidade: %s", err)
-	}
-
-	timestampSlice, err := ConvertStringToFloatSlice(vehicleData.TimeStamps)
-	if err != nil {
-		return "", fmt.Errorf("falha ao converter timestamps: %s", err)
-	}
-
-	if len(speedSlice) != len(timestampSlice) {
-		return "", fmt.Errorf("o número de timestamps e velocidades deve ser igual")
-	}
-
 	// Calcular aceleração anômala
 	anomalous := false
 	credits := 10
+
+	// Recuperar o histórico de dados do veículo do ledger
+	historyIterator, err := ctx.GetStub().GetHistoryForKey(idcarro)
+	if err != nil {
+		return "", fmt.Errorf("falha ao obter histórico de dados do veículo: %s", err)
+	}
+	defer historyIterator.Close()
+
+	var speedSlice []float64
+	var timestampSlice []int64
+
+	// Iterar sobre o histórico e coletar dados de velocidade e timestamps
+	for historyIterator.HasNext() {
+		historyEntry, err := historyIterator.Next()
+		if err != nil {
+			return "", fmt.Errorf("falha ao iterar sobre o histórico de dados do veículo: %s", err)
+		}
+
+		var historicalData VehicleData
+		err = json.Unmarshal(historyEntry.Value, &historicalData)
+		if err != nil {
+			return "", fmt.Errorf("falha ao desserializar dados históricos do veículo: %s", err)
+		}
+
+		speed, err := strconv.ParseFloat(historicalData.Speed, 64)
+		if err != nil {
+			return "", fmt.Errorf("falha ao converter velocidade histórica: %s", err)
+		}
+		timestamp, err := strconv.ParseInt(historicalData.TimeStamps, 10, 64)
+		if err != nil {
+			return "", fmt.Errorf("falha ao converter timestamp histórico: %s", err)
+		}
+
+		speedSlice = append(speedSlice, speed)
+		timestampSlice = append(timestampSlice, timestamp)
+
+		// Parar se a diferença de tempo for maior que 5 minutos (300 segundos)
+		if len(timestampSlice) > 1 && (timestampSlice[0]-timestampSlice[len(timestampSlice)-1]) > 300 {
+			break
+		}
+	}
 
 	// calcula o delta de velocidade e tempo entre cada timestamp
 	for i := 1; i < len(speedSlice); i++ {
@@ -254,6 +301,7 @@ func (s *SmartContract) DetectAnomalousAcceleration(ctx contractapi.TransactionC
 	return "", ctx.GetStub().PutState(compositeKey, vehicleWalletJSON)
 }
 
+// NÃO MODIFIQUEI/TESTEI AINDA
 // Função para detectar comportamento de zigue-zague
 func (s *SmartContract) DetectZigZag(ctx contractapi.TransactionContextInterface, idcarro string) error {
 	// Recuperar os dados do veículo do ledger
@@ -306,7 +354,7 @@ func (s *SmartContract) DetectZigZag(ctx contractapi.TransactionContextInterface
 	// Se o número de zigue-zagues for maior ou igual a 3, aplica penalização
 	if zigzagCount >= 3 {
 		// Aplique penalização na carteira do veículo
-		vehicleWallet, err := GetVehicleWallet(ctx, idcarro)
+		vehicleWallet, err := ctx.GetStub().GetState(idcarro)
 		if err != nil {
 			return err
 		}
@@ -331,7 +379,8 @@ func (s *SmartContract) DetectZigZag(ctx contractapi.TransactionContextInterface
 	// Caso contrário, o veículo está dirigindo de forma aceitável
 	return fmt.Errorf("Condução normal, sem zigue-zague detectado")
 }
-	
+
+// NÃO MODIFIQUEI/TESTEI AINDA
 // Função para detectar mudanças bruscas de direção
 func (s *SmartContract) DetectSharpTurn(ctx contractapi.TransactionContextInterface, idcarro string) error {
 	// Recuperar os dados do veículo do ledger
@@ -373,7 +422,7 @@ func (s *SmartContract) DetectSharpTurn(ctx contractapi.TransactionContextInterf
 
 		// Se a direção for maior que 0.7 rad e a velocidade maior que 30 km/h
 		if direction > 0.7 && speed > 30 {
-			credits = -30// Penalidade de -30 créditos
+			credits = -30 // Penalidade de -30 créditos
 			flag = true
 		} else {
 			credits = 10
@@ -415,12 +464,13 @@ func (s *SmartContract) DetectSharpTurn(ctx contractapi.TransactionContextInterf
 
 	return ctx.GetStub().PutState(compositeKey, vehicleWalletJSON)
 }
+
 // CalculateBearing calcula a direção entre dois pontos geográficos
 func CalculateBearing(lat1, lon1, lat2, lon2 float64) float64 {
 	deltaLon := lon2 - lon1
 
 	x := math.Cos(lat2*math.Pi/180) * math.Sin(deltaLon*math.Pi/180)
-	y := math.Cos(lat1*math.Pi/180)*math.Sin(lat2*math.Pi/180) - 
+	y := math.Cos(lat1*math.Pi/180)*math.Sin(lat2*math.Pi/180) -
 		math.Sin(lat1*math.Pi/180)*math.Cos(lat2*math.Pi/180)*math.Cos(deltaLon*math.Pi/180)
 
 	bearing := math.Atan2(x, y) * 180 / math.Pi
@@ -429,7 +479,6 @@ func CalculateBearing(lat1, lon1, lat2, lon2 float64) float64 {
 	}
 	return bearing
 }
-
 
 // QueryVehicleData consulta os dados do veículo armazenados no ledger
 func (s *SmartContract) QueryVehicleData(ctx contractapi.TransactionContextInterface, idcarro string) (*VehicleData, error) {

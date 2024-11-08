@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -31,15 +32,36 @@ func main() {
 	enrollID := randomString(10)
 	registerEnrollUser(configFilePath, enrollID, mspID)
 
-	timeSlice, speedSlice, directionSlice := ReadCSV()
+    // Chamar a função ReadCSV
+    timestamps, lats, lons, vehicleSpeeds, accel_x, accel_y, accel_z, err := ReadCSV()
+    if err != nil {
+        log.Fatalf("Erro ao ler o CSV: %s", err)
+    }
 
-	// Converte slices para string para invocação
-	time := strings.Join(timeSlice, " ")
-	speed := strings.Join(speedSlice, " ")
-	direction := strings.Join(directionSlice, " ")
+	// Example usage of ConvertTimestampToUnix
+	unixTimestamp, err := ConvertTimestampToUnix(timestamps[1])
+	if err != nil {
+		log.Fatalf("Erro ao converter o timestamp: %s", err)
+	}
 
-	invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "DetectSharpTurn", []string{"ABC1234"})
-	queryCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "QueryVehicleWallet", []string{"ABC1234"})
+	cleanedLatitude, err := SanitizeFloatString(lats[1])
+	cleanedLongitude, err := SanitizeFloatString(lons[1])
+
+	fmt.Println("Timestamps:", timestamps[1])
+	fmt.Println("Unix Time:", unixTimestamp)
+	fmt.Println("Latitudes:", lats[1])
+	fmt.Println("Longitudes:", lons[1])
+	fmt.Println("Cleaned Latitude:", cleanedLatitude)
+	fmt.Println("Cleaned Longitude:", cleanedLongitude)
+	fmt.Println("Velocidades do veículo:", vehicleSpeeds[1])
+	fmt.Println("Aceleração X:", accel_x[1])
+	fmt.Println("Aceleração Y:", accel_y[1])
+	fmt.Println("Aceleração Z:", accel_z[1])
+
+	invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "StoreVehicleData", []string{"ABC1234", unixTimestamp, cleanedLatitude, cleanedLongitude, vehicleSpeeds[1], accel_x[1], accel_y[1], accel_z[1]})
+	queryCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "QueryVehicleData", []string{"ABC1234"})
+	// invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "DetectSharpTurn", []string{"ABC1234"})
+	// queryCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "QueryVehicleWallet", []string{"ABC1234"})
 }
 
 func registerEnrollUser(configFilePath, enrollID, mspID string) {
@@ -172,6 +194,30 @@ func queryCCgw(configFilePath, channelName, userName, mspID, chaincodeName, fcn 
 	log.Info(string(resp))
 }
 
+// ConvertTimestampToUnix converts a timestamp string to a Unix time string
+func ConvertTimestampToUnix(timestamp string) (string, error) {
+	// layout := "15:04:05.000"
+	fullTimestamp := "1970-01-01 " + timestamp // Inclui data fixa para epoch Unix
+	fullLayout := "2006-01-02 15:04:05.000"
+
+	t, err := time.Parse(fullLayout, fullTimestamp)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse timestamp: %w", err)
+	}
+	return fmt.Sprintf("%d", t.Unix()), nil
+}
+
+// SanitizeFloatString removes invalid characters from a float string
+func SanitizeFloatString(input string) (string, error) {
+    // Remove any commas or other invalid characters
+    cleaned := strings.ReplaceAll(input, ".", "")
+    cleaned = strings.ReplaceAll(cleaned, ",", ".")
+    if _, err := strconv.ParseFloat(cleaned, 64); err != nil {
+        return "", fmt.Errorf("invalid float string: %s", input)
+    }
+    return cleaned, nil
+}
+
 func randomString(length int) string {
 	rand.Seed(time.Now().UnixNano())
 	b := make([]byte, length)
@@ -179,48 +225,76 @@ func randomString(length int) string {
 	return fmt.Sprintf("%x", b)[:length]
 }
 
-// Função para converter timestamps no formato HH:MM:SS para segundos totais
-func convertToSeconds(timeStr string) int {
-	parsedTime, err := time.Parse("15:04:05", timeStr)
-	if err != nil {
-		log.Fatalf("Erro ao converter o timestamp para segundos: %s", err)
-	}
-	return parsedTime.Hour()*3600 + parsedTime.Minute()*60 + parsedTime.Second()
-}
-
-func ReadCSV() ([]string, []string, []string) {
+func ReadCSV() ([]string, []string, []string, []string, []string, []string, []string, error) {
 	// Abrir o arquivo CSV
-	file, err := os.Open("data.csv")
+	file, err := os.Open("data/obd_limited.csv")
 	if err != nil {
-		log.Fatalf("Erro ao abrir o arquivo: %s", err)
+		return nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("erro ao abrir o arquivo: %w", err)
 	}
 	defer file.Close()
 
 	// Criar um leitor CSV
 	reader := csv.NewReader(file)
+	reader.Comma = ',' // Definir o delimitador como vírgula
 
-	// Ler todos os registros do arquivo CSV
-	records, err := reader.ReadAll()
+	// Ler o cabeçalho
+	header, err := reader.Read()
 	if err != nil {
-		log.Fatalf("Erro ao ler o arquivo CSV: %s", err)
+		return nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("erro ao ler o cabeçalho do arquivo CSV: %w", err)
 	}
 
-	// Separar os registros em slices de strings
-	var timeSlice, speedSlice, directionSlice []string
-	for i, record := range records {
-		// Ignorar o cabeçalho
-		if i == 0 {
-			continue
+	// Inicializar slices para armazenar os dados das colunas desejadas
+	var timestamps, lats, lons, vehicleSpeeds, accelX, accelY, accelZ []string
+
+	// Mapear os índices das colunas desejadas
+	columnIndices := make(map[string]int)
+	for i, col := range header {
+		switch col {
+		case "timestamp":
+			columnIndices["timestamp"] = i
+		case "lat":
+			columnIndices["lat"] = i
+		case "lon":
+			columnIndices["lon"] = i
+		case "vehicle_speed":
+			columnIndices["vehicle_speed"] = i
+		case "accel_x":
+			columnIndices["accel_x"] = i
+		case "accel_y":
+			columnIndices["accel_y"] = i
+		case "accel_z":
+			columnIndices["accel_z"] = i
 		}
-		if len(record) < 3 {
-			continue // Ignorar linhas incompletas
-		}
-		// Converter o tempo para segundos
-		timeInSeconds := convertToSeconds(record[0])
-		timeSlice = append(timeSlice, fmt.Sprintf("%d", timeInSeconds))
-		speedSlice = append(speedSlice, record[1])
-		directionSlice = append(directionSlice, record[2])
 	}
 
-	return timeSlice, speedSlice, directionSlice
+	// Ler as primeiras 5 linhas
+	for i := 0; i < 5; i++ {
+		record, err := reader.Read()
+		if err != nil {
+			return nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("erro ao ler o arquivo CSV: %w", err)
+		}
+		if idx, ok := columnIndices["timestamp"]; ok {
+			timestamps = append(timestamps, record[idx])
+		}
+		if idx, ok := columnIndices["lat"]; ok {
+			lats = append(lats, record[idx])
+		}
+		if idx, ok := columnIndices["lon"]; ok {
+			lons = append(lons, record[idx])
+		}
+		if idx, ok := columnIndices["vehicle_speed"]; ok {
+			vehicleSpeeds = append(vehicleSpeeds, record[idx])
+		}
+		if idx, ok := columnIndices["accel_x"]; ok {
+			accelX = append(accelX, record[idx])
+		}
+		if idx, ok := columnIndices["accel_y"]; ok {
+			accelY = append(accelY, record[idx])
+		}
+		if idx, ok := columnIndices["accel_z"]; ok {
+			accelZ = append(accelZ, record[idx])
+		}
+	}
+
+	return timestamps, lats, lons, vehicleSpeeds, accelX, accelY, accelZ, nil
 }
