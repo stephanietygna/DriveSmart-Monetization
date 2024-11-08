@@ -323,6 +323,7 @@ func (s *SmartContract) DetectZigZag(ctx contractapi.TransactionContextInterface
 	var prevAccelX, prevAccelY, prevAccelZ string
 	var zigzagCount int
 
+	// VERIFICAR: [acceldata não existe, creio que accel data deveria ser accelX, accelY, accelZ?]
 	// Verifica se os dados de aceleração foram armazenados como uma string
 	accelData := vehicleData.AccelData // Supondo que AccelData seja uma string "accelX_value accelY_value accelZ_value"
 
@@ -331,6 +332,7 @@ func (s *SmartContract) DetectZigZag(ctx contractapi.TransactionContextInterface
 		return fmt.Errorf("dados de aceleração não encontrados")
 	}
 
+	// VERIFICAR: [se accel data é uma string "accelX_value accelY_value accelZ_value", contendo 1 valor cada,  então não é necessário fazer o split]
 	// Separa a string de aceleração em valores de aceleração X, Y e Z
 	accelValues := strings.Fields(accelData) // Divide a string em partes, por exemplo: ["accelX_value", "accelY_value", "accelZ_value"]
 	if len(accelValues) != 3 {
@@ -341,6 +343,7 @@ func (s *SmartContract) DetectZigZag(ctx contractapi.TransactionContextInterface
 	accelY := accelValues[1]
 	accelZ := accelValues[2]
 
+	// VERIFICAR: [os valores de accel estão sendo armazenados individualmente, então deveria ser utilizada a função GetHistoryForkKey para recuperar os valores anteriores]
 	// Compara os valores de aceleração para detectar zigue-zague (comparando as strings diretamente)
 	if accelX != prevAccelX || accelY != prevAccelY || accelZ != prevAccelZ {
 		zigzagCount++
@@ -354,12 +357,14 @@ func (s *SmartContract) DetectZigZag(ctx contractapi.TransactionContextInterface
 	// Se o número de zigue-zagues for maior ou igual a 3, aplica penalização
 	if zigzagCount >= 3 {
 		// Aplique penalização na carteira do veículo
+		// VERIFICAR: [vehicleWallet utiliza chave composta. Precisa do "indexName: WALLET"]
 		vehicleWallet, err := ctx.GetStub().GetState(idcarro)
 		if err != nil {
 			return err
 		}
 
 		// Penalização nos créditos do veículo
+		// VERIFICAR: [penaltyAmount não foi definido]
 		vehicleWallet.Credits -= penaltyAmount
 
 		// Atualiza os dados da carteira no ledger
