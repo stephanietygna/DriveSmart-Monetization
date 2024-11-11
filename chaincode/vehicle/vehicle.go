@@ -301,9 +301,14 @@ func (s *SmartContract) DetectAnomalousAcceleration(ctx contractapi.TransactionC
 	return "", ctx.GetStub().PutState(compositeKey, vehicleWalletJSON)
 }
 
-// NÃO MODIFIQUEI/TESTEI AINDA
+// NÃO MODIFIQUEI/TESTEI AINDA // MODIFICADA FALTA TESTAR
 // Função para detectar comportamento de zigue-zague
 func (s *SmartContract) DetectZigZag(ctx contractapi.TransactionContextInterface, idcarro string) error {
+	// Cria a chave composta para a carteira
+	walletKey, err := ctx.GetStub().CreateCompositeKey("WALLET", []string{idcarro})
+	if err != nil {
+		return fmt.Errorf("erro ao criar chave composta para a carteira: %s", err)
+	}
 	// Recuperar os dados do veículo do ledger
 	vehicleDataJSON, err := ctx.GetStub().GetState(idcarro)
 	if err != nil {
@@ -319,82 +324,101 @@ func (s *SmartContract) DetectZigZag(ctx contractapi.TransactionContextInterface
 		return fmt.Errorf("falha ao desserializar os dados do veículo: %s", err)
 	}
 
-	// Inicializa variáveis para comparação de zigue-zague
-	var prevAccelX, prevAccelY, prevAccelZ float64
+	// Variáveis para comparação e contagem de zigue-zague
 	var zigzagCount int
-	const penaltyAmount = -30 // Defina o valor da penalização
+	const penaltyAmount = 30 // Define o valor da penalização
 
-	// Verifica se os dados de aceleração X, Y e Z existem
-	if vehicleData.AccelX == 0 && vehicleData.AccelY == 0 && vehicleData.AccelZ == 0 {
-		return fmt.Errorf("dados de aceleração não encontrados")
-	}
+	// Função auxiliar para obter o último valor histórico
+	getLastHistoryValue := func(ctx contractapi.TransactionContextInterface, key string) (string, error) {
+		historyIter, err := ctx.GetStub().GetHistoryForKey(key)
+		if err != nil {
+			return "", fmt.Errorf("falha ao recuperar histórico para %s: %s", key, err)
+		}
+		defer historyIter.Close()
 
-	// Atribui os valores de aceleração diretamente
-	accelX := vehicleData.AccelX
-	accelY := vehicleData.AccelY
-	accelZ := vehicleData.AccelZ
-
-	// Detecta mudanças bruscas para identificar zigue-zague
-	if accelX != prevAccelX || accelY != prevAccelY || accelZ != prevAccelZ {
-		zigzagCount++
+	// Retorna o valor mais recente no histórico
+		for historyIter.HasNext() {
+			historyEntry, err := historyIter.Next()
+			if err != nil {
+				return "", fmt.Errorf("erro ao iterar histórico: %s", err)
+			}
+			if historyEntry != nil && !historyEntry.IsDelete {
+				return string(historyEntry.Value), nil
+			}
+		}
+		return "", fmt.Errorf("nenhum histórico encontrado para %s", key)
 	}
 	
+	// Recupera últimos valores de aceleração para detectar zigue-zague
+	prevAccelX, err := getLastHistoryValue(ctx, idcarro+"_accelX")
+	if err != nil {
+		return fmt.Errorf("erro ao obter valor histórico de aceleração X: %s", err)
+	}
+	prevAccelY, err := getLastHistoryValue(ctx, idcarro+"_accelY")
+	if err != nil {
+		return fmt.Errorf("erro ao obter valor histórico de aceleração Y: %s", err)
+	}
+	prevAccelZ, err := getLastHistoryValue(ctx, idcarro+"_accelZ")
+	if err != nil {
+		return fmt.Errorf("erro ao obter valor histórico de aceleração Z: %s", err)
+	}
+	// Converte os valores atuais de `VehicleData` para string (se forem armazenados como strings)
+	currentAccelX := fmt.Sprintf("%f", vehicleData.AccelX)
+	currentAccelY := fmt.Sprintf("%f", vehicleData.AccelY)
+	currentAccelZ := fmt.Sprintf("%f", vehicleData.AccelZ)
+
+	// Compara os valores para detectar zigue-zague
+	if currentAccelX != prevAccelX || currentAccelY != prevAccelY || currentAccelZ != prevAccelZ {
+		zigzagCount++
+	}
 	// VERIFICAR: [acceldata não existe, creio que accel data deveria ser accelX, accelY, accelZ?]
 	// Verifica se os dados de aceleração foram armazenados como uma string
 	// accelData := vehicleData.AccelData // Supondo que AccelData seja uma string "accelX_value accelY_value accelZ_value"
 
 	// Se os dados de aceleração estiverem ausentes, retorna erro
-	if accelData == "" {
-		return fmt.Errorf("dados de aceleração não encontrados")
-	}
+	//if accelData == "" {
+	//	return fmt.Errorf("dados de aceleração não encontrados")
+	//}
 
 	// VERIFICAR: [se accel data é uma string "accelX_value accelY_value accelZ_value", contendo 1 valor cada,  então não é necessário fazer o split] //acho que não pois vamos analisar varias amostras consecutivas
 	// Separa a string de aceleração em valores de aceleração X, Y e Z
-	func separarValoresDeAceleracao(accelData string) (string, string, string, error) {
+	//func separarValoresDeAceleracao(accelData string) (string, string, string, error) {
 	// Divide a string em partes ["accelX_value", "accelY_value", "accelZ_value"]
-	accelValues := strings.Fields(accelData)
-	if len(accelValues) != 3 {
-		return "", "", "", fmt.Errorf("formato inválido de dados de aceleração")
-	}
+	//accelValues := strings.Fields(accelData)
+	//if len(accelValues) != 3 {
+	//	return "", "", "", fmt.Errorf("formato inválido de dados de aceleração")
+	//}
 
 	// Atribui cada parte aos valores de aceleração X, Y e Z como string
-	accelX := accelValues[0]
-	accelY := accelValues[1]
-	accelZ := accelValues[2]
+// 	accelX := accelValues[0]
+// 	accelY := accelValues[1]
+// 	accelZ := accelValues[2]
 		
-	return accelX, accelY, accelZ, nil
-}
+// 	return accelX, accelY, accelZ, nil
+// }
 		
-	// Divide a string em partes, por exemplo: ["accelX_value", "accelY_value", "accelZ_value"]
-	func dividirAceleracao(accelData string) ([]string, error) {
-	// Divide a string com base em espaços
-	accelValues := strings.Fields(accelData)
-	if len(accelValues) != 3 {
-		return nil, fmt.Errorf("formato inválido de dados de aceleração")
-	}
+// 	// Divide a string em partes, por exemplo: ["accelX_value", "accelY_value", "accelZ_value"]
+// 	func dividirAceleracao(accelData string) ([]string, error) {
+// 	// Divide a string com base em espaços
+// 	accelValues := strings.Fields(accelData)
+// 	if len(accelValues) != 3 {
+// 		return nil, fmt.Errorf("formato inválido de dados de aceleração")
+// 	}
 
-	return accelValues, nil
-}
+// 	return accelValues, nil
+// }
 	
 	// VERIFICAR: [os valores de accel estão sendo armazenados individualmente, então deveria ser utilizada a função GetHistoryForkKey para recuperar os valores anteriores]
-	// Compara os valores de aceleração para detectar zigue-zague (comparando as strings diretamente)
-	if accelX != prevAccelX || accelY != prevAccelY || accelZ != prevAccelZ {
-		zigzagCount++
-	}
-
-	// Atualiza os valores anteriores de aceleração
-	prevAccelX = accelX
-	prevAccelY = accelY
-	prevAccelZ = accelZ
 
 	// Se o número de zigue-zagues for maior ou igual a 3, aplica penalização
 	if zigzagCount >= 3 {
 		// Aplique penalização na carteira do veículo
 		// VERIFICAR: [vehicleWallet utiliza chave composta. Precisa do "indexName: WALLET"]
-		vehicleWalletJSON, err := ctx.GetStub().GetState("WALLET_" + idcarro)
+		vehicleWalletJSON, err := ctx.GetStub().GetState(walletKey)
 		if err != nil || vehicleWalletJSON == nil {
 			return fmt.Errorf("erro ao recuperar a carteira do veículo: %s", err)
 		}
+		
 		var vehicleWallet Wallet
 		err = json.Unmarshal(vehicleWalletJSON, &vehicleWallet)
 		if err != nil {
@@ -402,18 +426,18 @@ func (s *SmartContract) DetectZigZag(ctx contractapi.TransactionContextInterface
 		}
 
 		// Penalização nos créditos do veículo
-		// VERIFICAR: [penaltyAmount não foi definido]
+		// VERIFICAR: [penaltyAmount não foi definido] //  foi
 		vehicleWallet.Credits -= penaltyAmount
 
 		// Atualiza os dados da carteira no ledger
 		vehicleWalletJSON, err := json.Marshal(vehicleWallet)
 		if err != nil {
-			return fmt.Errorf("erro ao serializar os dados da carteira: %s", err.Error())
+			return fmt.Errorf("erro ao serializar os dados da carteira: %s", err)
 		}
 
-		err = ctx.GetStub().PutState("WALLET_"+idcarro, vehicleWalletJSON)
+		err = ctx.GetStub().PutState(walletKey, vehicleWalletJSON)
 		if err != nil {
-			return fmt.Errorf("erro ao atualizar dados da carteira do veículo: %s", err.Error())
+			return fmt.Errorf("erro ao atualizar dados da carteira do veículo: %s", err)
 		}
 
 		return fmt.Errorf("Zigue-zague detectado! Penalização aplicada. Créditos restantes: %f", vehicleWallet.Credits)
