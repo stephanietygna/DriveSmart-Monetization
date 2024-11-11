@@ -319,30 +319,63 @@ func (s *SmartContract) DetectZigZag(ctx contractapi.TransactionContextInterface
 		return fmt.Errorf("falha ao desserializar os dados do veículo: %s", err)
 	}
 
-	// Inicializa as variáveis
-	var prevAccelX, prevAccelY, prevAccelZ string
+	// Inicializa variáveis para comparação de zigue-zague
+	var prevAccelX, prevAccelY, prevAccelZ float64
 	var zigzagCount int
+	const penaltyAmount = -30 // Defina o valor da penalização
 
+	// Verifica se os dados de aceleração X, Y e Z existem
+	if vehicleData.AccelX == 0 && vehicleData.AccelY == 0 && vehicleData.AccelZ == 0 {
+		return fmt.Errorf("dados de aceleração não encontrados")
+	}
+
+	// Atribui os valores de aceleração diretamente
+	accelX := vehicleData.AccelX
+	accelY := vehicleData.AccelY
+	accelZ := vehicleData.AccelZ
+
+	// Detecta mudanças bruscas para identificar zigue-zague
+	if accelX != prevAccelX || accelY != prevAccelY || accelZ != prevAccelZ {
+		zigzagCount++
+	}
+	
 	// VERIFICAR: [acceldata não existe, creio que accel data deveria ser accelX, accelY, accelZ?]
 	// Verifica se os dados de aceleração foram armazenados como uma string
-	accelData := vehicleData.AccelData // Supondo que AccelData seja uma string "accelX_value accelY_value accelZ_value"
+	// accelData := vehicleData.AccelData // Supondo que AccelData seja uma string "accelX_value accelY_value accelZ_value"
 
 	// Se os dados de aceleração estiverem ausentes, retorna erro
 	if accelData == "" {
 		return fmt.Errorf("dados de aceleração não encontrados")
 	}
 
-	// VERIFICAR: [se accel data é uma string "accelX_value accelY_value accelZ_value", contendo 1 valor cada,  então não é necessário fazer o split]
+	// VERIFICAR: [se accel data é uma string "accelX_value accelY_value accelZ_value", contendo 1 valor cada,  então não é necessário fazer o split] //acho que não pois vamos analisar varias amostras consecutivas
 	// Separa a string de aceleração em valores de aceleração X, Y e Z
-	accelValues := strings.Fields(accelData) // Divide a string em partes, por exemplo: ["accelX_value", "accelY_value", "accelZ_value"]
+	func separarValoresDeAceleracao(accelData string) (string, string, string, error) {
+	// Divide a string em partes ["accelX_value", "accelY_value", "accelZ_value"]
+	accelValues := strings.Fields(accelData)
 	if len(accelValues) != 3 {
-		return fmt.Errorf("formato inválido de dados de aceleração")
+		return "", "", "", fmt.Errorf("formato inválido de dados de aceleração")
 	}
 
+	// Atribui cada parte aos valores de aceleração X, Y e Z como string
 	accelX := accelValues[0]
 	accelY := accelValues[1]
 	accelZ := accelValues[2]
+		
+	return accelX, accelY, accelZ, nil
+}
+		
+	// Divide a string em partes, por exemplo: ["accelX_value", "accelY_value", "accelZ_value"]
+	func dividirAceleracao(accelData string) ([]string, error) {
+	// Divide a string com base em espaços
+	accelValues := strings.Fields(accelData)
+	if len(accelValues) != 3 {
+		return nil, fmt.Errorf("formato inválido de dados de aceleração")
+	}
 
+	return accelValues, nil
+}
+	
 	// VERIFICAR: [os valores de accel estão sendo armazenados individualmente, então deveria ser utilizada a função GetHistoryForkKey para recuperar os valores anteriores]
 	// Compara os valores de aceleração para detectar zigue-zague (comparando as strings diretamente)
 	if accelX != prevAccelX || accelY != prevAccelY || accelZ != prevAccelZ {
@@ -358,9 +391,14 @@ func (s *SmartContract) DetectZigZag(ctx contractapi.TransactionContextInterface
 	if zigzagCount >= 3 {
 		// Aplique penalização na carteira do veículo
 		// VERIFICAR: [vehicleWallet utiliza chave composta. Precisa do "indexName: WALLET"]
-		vehicleWallet, err := ctx.GetStub().GetState(idcarro)
+		vehicleWalletJSON, err := ctx.GetStub().GetState("WALLET_" + idcarro)
+		if err != nil || vehicleWalletJSON == nil {
+			return fmt.Errorf("erro ao recuperar a carteira do veículo: %s", err)
+		}
+		var vehicleWallet Wallet
+		err = json.Unmarshal(vehicleWalletJSON, &vehicleWallet)
 		if err != nil {
-			return err
+			return fmt.Errorf("erro ao desserializar dados da carteira: %s", err)
 		}
 
 		// Penalização nos créditos do veículo
@@ -373,7 +411,7 @@ func (s *SmartContract) DetectZigZag(ctx contractapi.TransactionContextInterface
 			return fmt.Errorf("erro ao serializar os dados da carteira: %s", err.Error())
 		}
 
-		err = ctx.GetStub().PutState(idcarro, vehicleWalletJSON)
+		err = ctx.GetStub().PutState("WALLET_"+idcarro, vehicleWalletJSON)
 		if err != nil {
 			return fmt.Errorf("erro ao atualizar dados da carteira do veículo: %s", err.Error())
 		}
