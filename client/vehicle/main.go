@@ -30,38 +30,43 @@ func main() {
 	log.SetOutput(file)
 
 	enrollID := randomString(10)
+	//enrollID := "inmetro-admin-default"
 	registerEnrollUser(configFilePath, enrollID, mspID)
 
-    // Chamar a função ReadCSV
-    timestamps, lats, lons, vehicleSpeeds, accel_x, accel_y, accel_z, err := ReadCSV()
-    if err != nil {
-        log.Fatalf("Erro ao ler o CSV: %s", err)
-    }
+	// Chamar a função ReadCSV
+	timestamps, lats, lons, vehicleSpeeds, accel_x, accel_y, accel_z, err := ReadCSV()
+	if err != nil {
+		log.Fatalf("Erro ao ler o CSV: %s", err)
+	}
+
+	// position := 22
+	position := 28
 
 	// Example usage of ConvertTimestampToUnix
-	unixTimestamp, err := ConvertTimestampToUnix(timestamps[1])
+	unixTimestamp, err := ConvertTimestampToUnix(timestamps[position])
 	if err != nil {
 		log.Fatalf("Erro ao converter o timestamp: %s", err)
 	}
 
-	cleanedLatitude, err := SanitizeFloatString(lats[1])
-	cleanedLongitude, err := SanitizeFloatString(lons[1])
+	cleanedLatitude, err := SanitizeFloatString(lats[position])
+	cleanedLongitude, err := SanitizeFloatString(lons[position])
 
-	fmt.Println("Timestamps:", timestamps[1])
+	fmt.Println("Timestamps:", timestamps[position])
 	fmt.Println("Unix Time:", unixTimestamp)
-	fmt.Println("Latitudes:", lats[1])
-	fmt.Println("Longitudes:", lons[1])
+	fmt.Println("Latitudes:", lats[position])
+	fmt.Println("Longitudes:", lons[position])
 	fmt.Println("Cleaned Latitude:", cleanedLatitude)
 	fmt.Println("Cleaned Longitude:", cleanedLongitude)
-	fmt.Println("Velocidades do veículo:", vehicleSpeeds[1])
-	fmt.Println("Aceleração X:", accel_x[1])
-	fmt.Println("Aceleração Y:", accel_y[1])
-	fmt.Println("Aceleração Z:", accel_z[1])
+	fmt.Println("Velocidades do veículo:", vehicleSpeeds[position])
+	fmt.Println("Aceleração X:", accel_x[position])
+	fmt.Println("Aceleração Y:", accel_y[position])
+	fmt.Println("Aceleração Z:", accel_z[position])
 
-	invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "StoreVehicleData", []string{"ABC1234", unixTimestamp, cleanedLatitude, cleanedLongitude, vehicleSpeeds[1], accel_x[1], accel_y[1], accel_z[1]})
-	queryCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "QueryVehicleData", []string{"ABC1234"})
-	// invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "DetectSharpTurn", []string{"ABC1234"})
-	// queryCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "QueryVehicleWallet", []string{"ABC1234"})
+	// invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "StoreVehicleData", []string{"ABC4444", unixTimestamp, cleanedLatitude, cleanedLongitude, vehicleSpeeds[position], accel_x[position], accel_y[position], accel_z[position]})
+	invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "CreateVehicleWallet", []string{"ABC4444"})
+	// queryCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "QueryVehicleData", []string{"ABC4444"})
+	// invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "DetectZigZag", []string{"ABC4444"})
+	invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "DetectSharpTurn", []string{"ABC4444"})
 }
 
 func registerEnrollUser(configFilePath, enrollID, mspID string) {
@@ -209,13 +214,13 @@ func ConvertTimestampToUnix(timestamp string) (string, error) {
 
 // SanitizeFloatString removes invalid characters from a float string
 func SanitizeFloatString(input string) (string, error) {
-    // Remove any commas or other invalid characters
-    cleaned := strings.ReplaceAll(input, ".", "")
-    cleaned = strings.ReplaceAll(cleaned, ",", ".")
-    if _, err := strconv.ParseFloat(cleaned, 64); err != nil {
-        return "", fmt.Errorf("invalid float string: %s", input)
-    }
-    return cleaned, nil
+	// Remove any commas or other invalid characters
+	cleaned := strings.ReplaceAll(input, ".", "")
+	cleaned = strings.ReplaceAll(cleaned, ",", ".")
+	if _, err := strconv.ParseFloat(cleaned, 64); err != nil {
+		return "", fmt.Errorf("invalid float string: %s", input)
+	}
+	return cleaned, nil
 }
 
 func randomString(length int) string {
@@ -268,7 +273,7 @@ func ReadCSV() ([]string, []string, []string, []string, []string, []string, []st
 	}
 
 	// Ler as primeiras 5 linhas
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 50; i++ {
 		record, err := reader.Read()
 		if err != nil {
 			return nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("erro ao ler o arquivo CSV: %w", err)

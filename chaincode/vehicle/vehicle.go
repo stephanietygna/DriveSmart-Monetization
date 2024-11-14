@@ -301,7 +301,7 @@ func (s *SmartContract) DetectAnomalousAcceleration(ctx contractapi.TransactionC
 	return "", ctx.GetStub().PutState(compositeKey, vehicleWalletJSON)
 }
 
-// NÃO MODIFIQUEI/TESTEI AINDA // MODIFICADA FALTA TESTAR
+// MODIFICADA e FUNCIONAL!
 // Função para detectar comportamento de zigue-zague
 func (s *SmartContract) DetectZigZag(ctx contractapi.TransactionContextInterface, idcarro string) error {
 	// Cria a chave composta para a carteira
@@ -309,106 +309,55 @@ func (s *SmartContract) DetectZigZag(ctx contractapi.TransactionContextInterface
 	if err != nil {
 		return fmt.Errorf("erro ao criar chave composta para a carteira: %s", err)
 	}
-	// Recuperar os dados do veículo do ledger
-	vehicleDataJSON, err := ctx.GetStub().GetState(idcarro)
+
+	historyIterator, err := ctx.GetStub().GetHistoryForKey(idcarro)
 	if err != nil {
-		return fmt.Errorf("falha ao ler os dados do veículo do ledger: %s", err)
+		return fmt.Errorf("falha ao obter histórico de dados do veículo: %s", err)
 	}
-	if vehicleDataJSON == nil {
-		return fmt.Errorf("dados do veículo não encontrados")
+	defer historyIterator.Close()
+
+	numValues := 2
+
+	var history []VehicleData
+	for historyIterator.HasNext() {
+		historyEntry, err := historyIterator.Next()
+		if err != nil {
+			return fmt.Errorf("falha ao iterar sobre o histórico de dados do veículo: %s", err)
+		}
+
+		var historicalData VehicleData
+		err = json.Unmarshal(historyEntry.Value, &historicalData)
+		if err != nil {
+			return fmt.Errorf("falha ao desserializar dados históricos do veículo: %s", err)
+		}
+
+		history = append(history, historicalData)
+
+		if len(history) >= numValues {
+			break
+		}
 	}
 
-	var vehicleData VehicleData
-	err = json.Unmarshal(vehicleDataJSON, &vehicleData)
-	if err != nil {
-		return fmt.Errorf("falha ao desserializar os dados do veículo: %s", err)
-	}
+	// Recupera últimos valores de aceleração para detectar zigue-zague
+	prevAccelX := history[1].AccelX
+
+	prevAccelY := history[1].AccelY
+
+	prevAccelZ := history[1].AccelZ
+
+	// Converte os valores atuais de `VehicleData` para string (se forem armazenados como strings)
+	currentAccelX := history[0].AccelX
+	currentAccelY := history[0].AccelY
+	currentAccelZ := history[0].AccelY
 
 	// Variáveis para comparação e contagem de zigue-zague
 	var zigzagCount int
 	const penaltyAmount = 30 // Define o valor da penalização
 
-	// Função auxiliar para obter o último valor histórico
-	getLastHistoryValue := func(ctx contractapi.TransactionContextInterface, key string) (string, error) {
-		historyIter, err := ctx.GetStub().GetHistoryForKey(key)
-		if err != nil {
-			return "", fmt.Errorf("falha ao recuperar histórico para %s: %s", key, err)
-		}
-		defer historyIter.Close()
-
-	// Retorna o valor mais recente no histórico
-		for historyIter.HasNext() {
-			historyEntry, err := historyIter.Next()
-			if err != nil {
-				return "", fmt.Errorf("erro ao iterar histórico: %s", err)
-			}
-			if historyEntry != nil && !historyEntry.IsDelete {
-				return string(historyEntry.Value), nil
-			}
-		}
-		return "", fmt.Errorf("nenhum histórico encontrado para %s", key)
-	}
-	
-	// Recupera últimos valores de aceleração para detectar zigue-zague
-	prevAccelX, err := getLastHistoryValue(ctx, idcarro+"_accelX")
-	if err != nil {
-		return fmt.Errorf("erro ao obter valor histórico de aceleração X: %s", err)
-	}
-	prevAccelY, err := getLastHistoryValue(ctx, idcarro+"_accelY")
-	if err != nil {
-		return fmt.Errorf("erro ao obter valor histórico de aceleração Y: %s", err)
-	}
-	prevAccelZ, err := getLastHistoryValue(ctx, idcarro+"_accelZ")
-	if err != nil {
-		return fmt.Errorf("erro ao obter valor histórico de aceleração Z: %s", err)
-	}
-	// Converte os valores atuais de `VehicleData` para string (se forem armazenados como strings)
-	currentAccelX := fmt.Sprintf("%f", vehicleData.AccelX)
-	currentAccelY := fmt.Sprintf("%f", vehicleData.AccelY)
-	currentAccelZ := fmt.Sprintf("%f", vehicleData.AccelZ)
-
 	// Compara os valores para detectar zigue-zague
 	if currentAccelX != prevAccelX || currentAccelY != prevAccelY || currentAccelZ != prevAccelZ {
 		zigzagCount++
 	}
-	// VERIFICAR: [acceldata não existe, creio que accel data deveria ser accelX, accelY, accelZ?]
-	// Verifica se os dados de aceleração foram armazenados como uma string
-	// accelData := vehicleData.AccelData // Supondo que AccelData seja uma string "accelX_value accelY_value accelZ_value"
-
-	// Se os dados de aceleração estiverem ausentes, retorna erro
-	//if accelData == "" {
-	//	return fmt.Errorf("dados de aceleração não encontrados")
-	//}
-
-	// VERIFICAR: [se accel data é uma string "accelX_value accelY_value accelZ_value", contendo 1 valor cada,  então não é necessário fazer o split] //acho que não pois vamos analisar varias amostras consecutivas
-	// Separa a string de aceleração em valores de aceleração X, Y e Z
-	//func separarValoresDeAceleracao(accelData string) (string, string, string, error) {
-	// Divide a string em partes ["accelX_value", "accelY_value", "accelZ_value"]
-	//accelValues := strings.Fields(accelData)
-	//if len(accelValues) != 3 {
-	//	return "", "", "", fmt.Errorf("formato inválido de dados de aceleração")
-	//}
-
-	// Atribui cada parte aos valores de aceleração X, Y e Z como string
-// 	accelX := accelValues[0]
-// 	accelY := accelValues[1]
-// 	accelZ := accelValues[2]
-		
-// 	return accelX, accelY, accelZ, nil
-// }
-		
-// 	// Divide a string em partes, por exemplo: ["accelX_value", "accelY_value", "accelZ_value"]
-// 	func dividirAceleracao(accelData string) ([]string, error) {
-// 	// Divide a string com base em espaços
-// 	accelValues := strings.Fields(accelData)
-// 	if len(accelValues) != 3 {
-// 		return nil, fmt.Errorf("formato inválido de dados de aceleração")
-// 	}
-
-// 	return accelValues, nil
-// }
-	
-	// VERIFICAR: [os valores de accel estão sendo armazenados individualmente, então deveria ser utilizada a função GetHistoryForkKey para recuperar os valores anteriores]
 
 	// Se o número de zigue-zagues for maior ou igual a 3, aplica penalização
 	if zigzagCount >= 3 {
@@ -418,8 +367,8 @@ func (s *SmartContract) DetectZigZag(ctx contractapi.TransactionContextInterface
 		if err != nil || vehicleWalletJSON == nil {
 			return fmt.Errorf("erro ao recuperar a carteira do veículo: %s", err)
 		}
-		
-		var vehicleWallet Wallet
+
+		vehicleWallet := new(VehicleWallet)
 		err = json.Unmarshal(vehicleWalletJSON, &vehicleWallet)
 		if err != nil {
 			return fmt.Errorf("erro ao desserializar dados da carteira: %s", err)
@@ -427,10 +376,17 @@ func (s *SmartContract) DetectZigZag(ctx contractapi.TransactionContextInterface
 
 		// Penalização nos créditos do veículo
 		// VERIFICAR: [penaltyAmount não foi definido] //  foi
-		vehicleWallet.Credits -= penaltyAmount
+		currentCredits, err := strconv.Atoi(vehicleWallet.Credits)
+		if err != nil {
+			return fmt.Errorf("falha ao converter créditos atuais: %s", err)
+		}
+		vehicleWallet.Credits = strconv.Itoa(currentCredits - penaltyAmount)
+
+		log.Printf("Zig Zag: ", zigzagCount)
+		log.Printf("Créditos restantes: ", vehicleWallet.Credits)
 
 		// Atualiza os dados da carteira no ledger
-		vehicleWalletJSON, err := json.Marshal(vehicleWallet)
+		vehicleWalletJSON, err = json.Marshal(vehicleWallet)
 		if err != nil {
 			return fmt.Errorf("erro ao serializar os dados da carteira: %s", err)
 		}
@@ -444,10 +400,11 @@ func (s *SmartContract) DetectZigZag(ctx contractapi.TransactionContextInterface
 	}
 
 	// Caso contrário, o veículo está dirigindo de forma aceitável
+	log.Printf("Zigue-zague não detectado")
 	return fmt.Errorf("Condução normal, sem zigue-zague detectado")
 }
 
-// NÃO MODIFIQUEI/TESTEI AINDA
+// Tudo OK! A curva brusca é relatada nos logs do container do chaincode (comando: "kubectl logs nome-do-container-chaincode")
 // Função para detectar mudanças bruscas de direção
 func (s *SmartContract) DetectSharpTurn(ctx contractapi.TransactionContextInterface, idcarro string) error {
 	// Recuperar os dados do veículo do ledger
@@ -497,7 +454,7 @@ func (s *SmartContract) DetectSharpTurn(ctx contractapi.TransactionContextInterf
 		}
 	}
 
-	log.Printf("Curva brusca:", flag)
+	log.Printf("Curva brusca: %v", flag)
 
 	indexName := "WALLET"
 	compositeKey, err := ctx.GetStub().CreateCompositeKey(indexName, []string{idcarro})
