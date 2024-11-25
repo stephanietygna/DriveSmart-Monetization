@@ -34,39 +34,53 @@ func main() {
 	registerEnrollUser(configFilePath, enrollID, mspID)
 
 	// Chamar a função ReadCSV
-	timestamps, lats, lons, vehicleSpeeds, accel_x, accel_y, accel_z, err := ReadCSV()
 	if err != nil {
 		log.Fatalf("Erro ao ler o CSV: %s", err)
 	}
 
-	// position := 22
-	position := 28
+	for i := 0; i < 52020; i++ {
 
-	// Example usage of ConvertTimestampToUnix
-	unixTimestamp, err := ConvertTimestampToUnix(timestamps[position])
-	if err != nil {
-		log.Fatalf("Erro ao converter o timestamp: %s", err)
+		timestamps, lats, lons, vehicleSpeeds, accel_x, accel_y, accel_z, err := ReadCSV(i)
+
+		// Example usage of ConvertTimestampToUnix
+		unixTimestamp, err := ConvertTimestampToUnix(timestamps[0])
+		if err != nil {
+			log.Fatalf("Erro ao converter o timestamp: %s", err)
+		}
+
+		cleanedLatitude, err := SanitizeFloatString(lats[0])
+		if err != nil {
+			log.Fatalf("Erro ao limpar a latitude: %s", err)
+		}
+
+		cleanedLongitude, err := SanitizeFloatString(lons[0])
+		if err != nil {
+			log.Fatalf("Erro ao limpar a longitude: %s", err)
+		}
+
+		fmt.Println("Timestamps:", timestamps[0])
+		fmt.Println("Unix Time:", unixTimestamp)
+		fmt.Println("Latitudes:", lats[0])
+		fmt.Println("Longitudes:", lons[0])
+		fmt.Println("Cleaned Latitude:", cleanedLatitude)
+		fmt.Println("Cleaned Longitude:", cleanedLongitude)
+		fmt.Println("Velocidades do veículo:", vehicleSpeeds[0])
+		fmt.Println("Aceleração X:", accel_x[0])
+		fmt.Println("Aceleração Y:", accel_y[0])
+		fmt.Println("Aceleração Z:", accel_z[0])
+
+		invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "StoreVehicleData", []string{"ABC4444", unixTimestamp, cleanedLatitude, cleanedLongitude, vehicleSpeeds[0], accel_x[0], accel_y[0], accel_z[0]})
+		// invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "CreateVehicleWallet", []string{"ABC4444"})
+		// queryCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "QueryVehicleData", []string{"ABC4444"})
+
+		fmt.Println(timestamps[0])
+
+		invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "DetectZigZag", []string{"ABC4444"})
+		invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "DetectSharpTurn", []string{"ABC4444"})
+		invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "DetectAnomalousAcceleration", []string{"ABC4444"})
+
+		queryCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "QueryVehicleWallet", []string{"ABC4444"})
 	}
-
-	cleanedLatitude, err := SanitizeFloatString(lats[position])
-	cleanedLongitude, err := SanitizeFloatString(lons[position])
-
-	fmt.Println("Timestamps:", timestamps[position])
-	fmt.Println("Unix Time:", unixTimestamp)
-	fmt.Println("Latitudes:", lats[position])
-	fmt.Println("Longitudes:", lons[position])
-	fmt.Println("Cleaned Latitude:", cleanedLatitude)
-	fmt.Println("Cleaned Longitude:", cleanedLongitude)
-	fmt.Println("Velocidades do veículo:", vehicleSpeeds[position])
-	fmt.Println("Aceleração X:", accel_x[position])
-	fmt.Println("Aceleração Y:", accel_y[position])
-	fmt.Println("Aceleração Z:", accel_z[position])
-
-	// invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "StoreVehicleData", []string{"ABC4444", unixTimestamp, cleanedLatitude, cleanedLongitude, vehicleSpeeds[position], accel_x[position], accel_y[position], accel_z[position]})
-	invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "CreateVehicleWallet", []string{"ABC4444"})
-	// queryCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "QueryVehicleData", []string{"ABC4444"})
-	// invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "DetectZigZag", []string{"ABC4444"})
-	invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "DetectSharpTurn", []string{"ABC4444"})
 }
 
 func registerEnrollUser(configFilePath, enrollID, mspID string) {
@@ -230,9 +244,9 @@ func randomString(length int) string {
 	return fmt.Sprintf("%x", b)[:length]
 }
 
-func ReadCSV() ([]string, []string, []string, []string, []string, []string, []string, error) {
+func ReadCSV(pos int) ([]string, []string, []string, []string, []string, []string, []string, error) {
 	// Abrir o arquivo CSV
-	file, err := os.Open("data/obd_limited.csv")
+	file, err := os.Open("data/obd.csv")
 	if err != nil {
 		return nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("erro ao abrir o arquivo: %w", err)
 	}
@@ -272,8 +286,8 @@ func ReadCSV() ([]string, []string, []string, []string, []string, []string, []st
 		}
 	}
 
-	// Ler as primeiras 5 linhas
-	for i := 0; i < 50; i++ {
+	// Ler as primeiras X linhas
+	for i := 0; i <= pos; i++ {
 		record, err := reader.Read()
 		if err != nil {
 			return nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("erro ao ler o arquivo CSV: %w", err)
@@ -301,5 +315,5 @@ func ReadCSV() ([]string, []string, []string, []string, []string, []string, []st
 		}
 	}
 
-	return timestamps, lats, lons, vehicleSpeeds, accelX, accelY, accelZ, nil
+	return []string{timestamps[pos]}, []string{lats[pos]}, []string{lons[pos]}, []string{vehicleSpeeds[pos]}, []string{accelX[pos]}, []string{accelY[pos]}, []string{accelZ[pos]}, nil
 }
