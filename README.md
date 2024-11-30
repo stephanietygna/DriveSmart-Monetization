@@ -1,5 +1,5 @@
 # DriveSmart-Monetization
-DriveSmart-Monetization promove a direção segura através de análise comportamental e monetização. Identifica aceleração brusca, mudanças de direção e zigue-zague, recompensando motoristas por práticas seguras e penalizando comportamentos de risco. 
+DriveSmart-Monetization promotes safe driving through behavioral analysis and monetization. It identifies harsh acceleration, sharp turns, and zig-zag patterns, rewarding drivers for safe practices and penalizing risky behaviors.
 
 # Hyperledger Fabric Operator
 
