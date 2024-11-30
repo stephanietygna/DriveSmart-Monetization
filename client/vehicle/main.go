@@ -30,57 +30,85 @@ func main() {
 	log.SetOutput(file)
 
 	enrollID := randomString(10)
-	//enrollID := "inmetro-admin-default"
 	registerEnrollUser(configFilePath, enrollID, mspID)
 
-	// Chamar a função ReadCSV
+	timestamps, lats, lons, vehicleSpeeds, accel_x, accel_y, accel_z, err := ReadCSV()
+
 	if err != nil {
 		log.Fatalf("Erro ao ler o CSV: %s", err)
 	}
 
-	for i := 0; i < 52020; i++ {
+	invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "CreateVehicleWallet", []string{"ABC1234"})
 
-		timestamps, lats, lons, vehicleSpeeds, accel_x, accel_y, accel_z, err := ReadCSV(i)
+	// le de 0 até o tamanho do slice timestamps
+	linhas := 5351
+	for i := 0; i <= linhas; i++ {
+
+		fmt.Println(strings.Repeat("-", 30))
+		// fmt.Printf("Posição: %v/%v \n", i, len(timestamps)-1)
+		fmt.Printf("Posição: %v/%v \n", i, linhas)
+		fmt.Println(strings.Repeat("-", 30))
+
+		// start := time.Now().Unix()
+		// spent := start - int64(before)
+		// fmt.Println("tempo gasto em segundos: ", spent)
 
 		// Example usage of ConvertTimestampToUnix
-		unixTimestamp, err := ConvertTimestampToUnix(timestamps[0])
+		unixTimestamp, err := ConvertTimestampToUnix(timestamps[i])
 		if err != nil {
 			log.Fatalf("Erro ao converter o timestamp: %s", err)
 		}
 
-		cleanedLatitude, err := SanitizeFloatString(lats[0])
+		cleanedLatitude, err := SanitizeFloatString(lats[i])
 		if err != nil {
 			log.Fatalf("Erro ao limpar a latitude: %s", err)
 		}
 
-		cleanedLongitude, err := SanitizeFloatString(lons[0])
+		cleanedLongitude, err := SanitizeFloatString(lons[i])
 		if err != nil {
 			log.Fatalf("Erro ao limpar a longitude: %s", err)
 		}
 
-		fmt.Println("Timestamps:", timestamps[0])
+		fmt.Println("Timestamps:", timestamps[i])
 		fmt.Println("Unix Time:", unixTimestamp)
-		fmt.Println("Latitudes:", lats[0])
-		fmt.Println("Longitudes:", lons[0])
+		fmt.Println("Latitudes:", lats[i])
+		fmt.Println("Longitudes:", lons[i])
 		fmt.Println("Cleaned Latitude:", cleanedLatitude)
 		fmt.Println("Cleaned Longitude:", cleanedLongitude)
-		fmt.Println("Velocidades do veículo:", vehicleSpeeds[0])
-		fmt.Println("Aceleração X:", accel_x[0])
-		fmt.Println("Aceleração Y:", accel_y[0])
-		fmt.Println("Aceleração Z:", accel_z[0])
+		fmt.Println("Velocidades do veículo:", vehicleSpeeds[i])
+		fmt.Println("Aceleração X:", accel_x[i])
+		fmt.Println("Aceleração Y:", accel_y[i])
+		fmt.Println("Aceleração Z:", accel_z[i])
 
-		invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "StoreVehicleData", []string{"ABC4444", unixTimestamp, cleanedLatitude, cleanedLongitude, vehicleSpeeds[0], accel_x[0], accel_y[0], accel_z[0]})
-		// invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "CreateVehicleWallet", []string{"ABC4444"})
-		// queryCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "QueryVehicleData", []string{"ABC4444"})
+		//[erro ao colocar id q nao existe?]
 
-		fmt.Println(timestamps[0])
+		// armazenar dados veiculares
+		invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "StoreVehicleData", []string{"ABC1234", unixTimestamp, cleanedLatitude, cleanedLongitude, vehicleSpeeds[i], accel_x[i], accel_y[i], accel_z[i]})
 
-		invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "DetectZigZag", []string{"ABC4444"})
-		invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "DetectSharpTurn", []string{"ABC4444"})
-		invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "DetectAnomalousAcceleration", []string{"ABC4444"})
+		// criar carteira do veiculo (executar apenas 1 vez a cada inicialização da rede)
+		// invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "CreateVehicleWallet", []string{"ABC1234"})
 
-		queryCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "QueryVehicleWallet", []string{"ABC4444"})
+		// consultar dados veiculares
+		queryCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "QueryVehicleData", []string{"ABC1234"})
+
+		/* FUNÇÕES DE ANÁLISE (NECESSITAM DA CARTEIRA CRIADA) */
+
+		invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "DetectSharpTurn", []string{"ABC1234"})
+		invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "DetectAnomalousAcceleration", []string{"ABC1234"})
+		// o zigzag deve ser executado a cada 10 linhas/segundos
+		if i != 0 && i%10 == 0 {
+			invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "DetectZigZag", []string{"ABC1234"})
+		}
+
+		// consultar carteira do veiculo
+		queryCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "QueryVehicleWallet", []string{"ABC1234"})
+
+		// testando richquery (GetQueryResult). retorna apenas o último estado, então não serve para resgatar historico
+		// queryCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "TestRichQuery", []string{"1732553439"})
+
+		// before = int(start)
 	}
+
 }
 
 func registerEnrollUser(configFilePath, enrollID, mspID string) {
@@ -215,11 +243,8 @@ func queryCCgw(configFilePath, channelName, userName, mspID, chaincodeName, fcn 
 
 // ConvertTimestampToUnix converts a timestamp string to a Unix time string
 func ConvertTimestampToUnix(timestamp string) (string, error) {
-	// layout := "15:04:05.000"
-	fullTimestamp := "1970-01-01 " + timestamp // Inclui data fixa para epoch Unix
-	fullLayout := "2006-01-02 15:04:05.000"
-
-	t, err := time.Parse(fullLayout, fullTimestamp)
+	layout := "2006-01-02 15:04:05.000"
+	t, err := time.Parse(layout, timestamp)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse timestamp: %w", err)
 	}
@@ -244,9 +269,9 @@ func randomString(length int) string {
 	return fmt.Sprintf("%x", b)[:length]
 }
 
-func ReadCSV(pos int) ([]string, []string, []string, []string, []string, []string, []string, error) {
+func ReadCSV() ([]string, []string, []string, []string, []string, []string, []string, error) {
 	// Abrir o arquivo CSV
-	file, err := os.Open("data/obd.csv")
+	file, err := os.Open("data/obd_clean.csv")
 	if err != nil {
 		return nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("erro ao abrir o arquivo: %w", err)
 	}
@@ -286,11 +311,14 @@ func ReadCSV(pos int) ([]string, []string, []string, []string, []string, []strin
 		}
 	}
 
-	// Ler as primeiras X linhas
-	for i := 0; i <= pos; i++ {
+	// Ler todas as linhas
+	for {
 		record, err := reader.Read()
+		if err == csv.ErrFieldCount {
+			continue
+		}
 		if err != nil {
-			return nil, nil, nil, nil, nil, nil, nil, fmt.Errorf("erro ao ler o arquivo CSV: %w", err)
+			break
 		}
 		if idx, ok := columnIndices["timestamp"]; ok {
 			timestamps = append(timestamps, record[idx])
@@ -315,5 +343,5 @@ func ReadCSV(pos int) ([]string, []string, []string, []string, []string, []strin
 		}
 	}
 
-	return []string{timestamps[pos]}, []string{lats[pos]}, []string{lons[pos]}, []string{vehicleSpeeds[pos]}, []string{accelX[pos]}, []string{accelY[pos]}, []string{accelZ[pos]}, nil
+	return timestamps, lats, lons, vehicleSpeeds, accelX, accelY, accelZ, nil
 }
