@@ -41,7 +41,7 @@ func main() {
 	invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "CreateVehicleWallet", []string{"ABC1234"})
 
 	// le de 0 até o tamanho do slice timestamps
-	linhas := 5351
+	linhas := 3529  // le 1h ---> 09:57:01 - 10:57:01
 	for i := 0; i <= linhas; i++ {
 
 		fmt.Println(strings.Repeat("-", 30))
