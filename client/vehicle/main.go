@@ -18,42 +18,73 @@ import (
 )
 
 func main() {
+	//configFilePath := os.Args[1]
 	configFilePath := "connection-org.yaml"
 	channelName := "demo"
 	mspID := "INMETROMSP"
 	chaincodeName := "vehicle"
 
-	file, err := os.OpenFile("logs/log.txt", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.SetOutput(file)
-
 	enrollID := randomString(10)
 	registerEnrollUser(configFilePath, enrollID, mspID)
 
-	timestamps, lats, lons, vehicleSpeeds, accel_x, accel_y, accel_z, err := ReadCSV()
+	//invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "CreateVehicleWallet", "ABC1234")
+	//invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "CreateCar")
 
+	configBackend := config.FromFile(configFilePath)
+	sdk, err := fabsdk.New(configBackend)
 	if err != nil {
-		log.Fatalf("Erro ao ler o CSV: %s", err)
+		log.Error(err)
 	}
 
-	invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "CreateVehicleWallet", []string{"ABC1234"})
+	wallet, err := gateway.NewFileSystemWallet(fmt.Sprintf("wallet/%s", mspID))
+	if err != nil {
+		log.Error(err)
+		return
+	}
+	if err != nil {
+		log.Errorf("Failed to create wallet: %s", err)
+		return
+	}
 
-	// le de 0 até o tamanho do slice timestamps
-	linhas := 3529  // le 1h ---> 09:57:01 - 10:57:01
-	for i := 0; i <= linhas; i++ {
+	gw, err := gateway.Connect(
+		gateway.WithSDK(sdk),
+		gateway.WithUser(enrollID),
+		gateway.WithIdentity(wallet, enrollID),
+	)
+	if err != nil {
+		log.Errorf("Failed to create new Gateway: %s", err)
+	}
+	// defer gw.Close()
+	nw, err := gw.GetNetwork(channelName)
+	if err != nil {
+		log.Errorf("Failed to get network: %s", err)
+	}
 
-		fmt.Println(strings.Repeat("-", 30))
-		// fmt.Printf("Posição: %v/%v \n", i, len(timestamps)-1)
-		fmt.Printf("Posição: %v/%v \n", i, linhas)
-		fmt.Println(strings.Repeat("-", 30))
+	timestamps, lats, lons, vehicleSpeeds, accel_x, accel_y, accel_z, err := ReadCSV()
+	if err != nil {
+		log.Fatalf("Failed to read CSV: %s", err)
+	}
 
-		// start := time.Now().Unix()
-		// spent := start - int64(before)
-		// fmt.Println("tempo gasto em segundos: ", spent)
+	// criar carteira (fora do loop, deve ser executado somente 1x)
+	contract := nw.GetContract(chaincodeName)
+	resp, err := contract.SubmitTransaction("CreateVehicleWallet", "ABC1234")
+	if err != nil {
+		log.Errorf("Failed submit transaction: %s", err)
+		return
+	}
+	log.Println(string(resp))
 
-		// Example usage of ConvertTimestampToUnix
+	// resp, err = contract.SubmitTransaction("GiveCredits", "ABC1234", "330")
+	// if err != nil {
+	// 	log.Errorf("Failed submit transaction: %s", err)
+	// 	return
+	// }
+	// log.Println(string(resp))
+
+	for i := 0; i < 2754; i++ {
+
+		fmt.Printf("Linha %v de %v\n", i, len(timestamps)-1)
+
 		unixTimestamp, err := ConvertTimestampToUnix(timestamps[i])
 		if err != nil {
 			log.Fatalf("Erro ao converter o timestamp: %s", err)
@@ -80,33 +111,60 @@ func main() {
 		fmt.Println("Aceleração Y:", accel_y[i])
 		fmt.Println("Aceleração Z:", accel_z[i])
 
-		//[erro ao colocar id q nao existe?]
-
-		// armazenar dados veiculares
-		invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "StoreVehicleData", []string{"ABC1234", unixTimestamp, cleanedLatitude, cleanedLongitude, vehicleSpeeds[i], accel_x[i], accel_y[i], accel_z[i]})
-
-		// criar carteira do veiculo (executar apenas 1 vez a cada inicialização da rede)
-		// invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "CreateVehicleWallet", []string{"ABC1234"})
-
-		// consultar dados veiculares
-		queryCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "QueryVehicleData", []string{"ABC1234"})
-
-		/* FUNÇÕES DE ANÁLISE (NECESSITAM DA CARTEIRA CRIADA) */
-
-		invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "DetectSharpTurn", []string{"ABC1234"})
-		invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "DetectAnomalousAcceleration", []string{"ABC1234"})
-		// o zigzag deve ser executado a cada 10 linhas/segundos
+		var flag string
 		if i != 0 && i%10 == 0 {
-			invokeCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "DetectZigZag", []string{"ABC1234"})
+			flag = "true"
+		} else {
+			flag = "false"
 		}
+		fmt.Println(flag)
 
-		// consultar carteira do veiculo
-		queryCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "QueryVehicleWallet", []string{"ABC1234"})
+		// contract = nw.GetContract(chaincodeName)
+		// resp, err = contract.EvaluateTransaction("QueryVehicleData", "ABC1234")
+		// if err != nil {
+		// 	log.Error("Failed submit transaction: %s", err)
+		// 	return
+		// }
+		// log.Info(string(resp))
 
-		// testando richquery (GetQueryResult). retorna apenas o último estado, então não serve para resgatar historico
-		// queryCCgw(configFilePath, channelName, enrollID, mspID, chaincodeName, "TestRichQuery", []string{"1732553439"})
+		contract = nw.GetContract(chaincodeName)
+		resp, err := contract.SubmitTransaction("StoreVehicleData", "ABC1234", unixTimestamp, cleanedLatitude, cleanedLongitude, vehicleSpeeds[i], accel_x[i], accel_y[i], accel_z[i], flag)
+		if err != nil {
+			log.Errorf("Failed submit transaction: %s", err)
+			return
+		}
+		log.Info(resp)
 
-		// before = int(start)
+		// contract := nw.GetContract(chaincodeName)
+		// resp, err = contract.SubmitTransaction("StoreSimpleVehicleData", "ABC1234", unixTimestamp, cleanedLatitude, cleanedLongitude, "0", vehicleSpeeds[i], accel_x[i], accel_y[i], accel_z[i], flag)
+		// if err != nil {
+		// 	log.Errorf("Failed submit transaction: %s", err)
+		// 	return
+		// }
+		// log.Info(resp)
+
+		contract = nw.GetContract(chaincodeName)
+		resp, err = contract.SubmitTransaction("AnalyzeDriverBehavior", "ABC1234")
+		if err != nil {
+			log.Errorf("Failed submit transaction: %s", err)
+			return
+		}
+		log.Info(resp)
+
+		// contract = nw.GetContract(chaincodeName)
+		resp, err = contract.EvaluateTransaction("QueryVehicleWallet", "ABC1234")
+		if err != nil {
+			log.Errorf("Failed submit transaction: %s", err)
+			return
+		}
+		log.Info(string(resp))
+
+		// resp, err = contract.EvaluateTransaction("QueryVehicleData", "ABC1234")
+		// if err != nil {
+		// 	log.Errorf("Failed submit transaction: %s", err)
+		// 	return
+		// }
+		// log.Info(string(resp))
 	}
 
 }
@@ -115,151 +173,103 @@ func registerEnrollUser(configFilePath, enrollID, mspID string) {
 	log.Info("Registering User : ", enrollID)
 	sdk, err := fabsdk.New(config.FromFile(configFilePath))
 	if err != nil {
-		log.Error("Failed to create SDK: %s\n", err)
+		log.Errorf("Failed to create SDK: %s", err)
 		return
 	}
 	ctx := sdk.Context()
-	caClient, err := mspclient.New(ctx, mspclient.WithCAInstance("inmetro-ca.default"), mspclient.WithOrg(mspID))
+	caClient, err := mspclient.New(
+		ctx,
+		mspclient.WithCAInstance("inmetro-ca.default"),
+		mspclient.WithOrg(mspID),
+	)
+
 	if err != nil {
-		log.Error("Failed to create msp client: %s\n", err)
-		return
+		log.Errorf("Failed to create msp client: %s\n", err)
 	}
 
-	log.Info("ca client created")
+	if caClient != nil {
+		log.Info("ca client created")
+	}
 	enrollmentSecret, err := caClient.Register(&mspclient.RegistrationRequest{
 		Name:           enrollID,
 		Type:           "client",
 		MaxEnrollments: -1,
 		Affiliation:    "",
-		Secret:         enrollID,
+		// CAName:         "INMETROMSP",
+		Attributes: nil,
+		Secret:     enrollID,
 	})
 	if err != nil {
+		//fmt.Println("VERIFICAÇÃO")
 		log.Error(err)
-		return
 	}
-
-	err = caClient.Enroll(enrollID, mspclient.WithSecret(enrollmentSecret), mspclient.WithProfile("tls"))
+	err = caClient.Enroll(
+		enrollID,
+		mspclient.WithSecret(enrollmentSecret),
+		mspclient.WithProfile("tls"),
+	)
 	if err != nil {
 		log.Error(errors.WithMessage(err, "failed to register identity"))
-		return
 	}
 
 	wallet, err := gateway.NewFileSystemWallet(fmt.Sprintf("wallet/%s", mspID))
 	if err != nil {
-		log.Error("Failed to create wallet: %s", err)
-		return
+		log.Error(err)
 	}
 
 	signingIdentity, err := caClient.GetSigningIdentity(enrollID)
 	if err != nil {
-		log.Error("Failed to get signing identity: %s", err)
-		return
+		log.Error(err)
 	}
 
 	key, err := signingIdentity.PrivateKey().Bytes()
 	if err != nil {
-		log.Error("Failed to get private key: %s", err)
-		return
+		log.Error(err)
 	}
+
 	identity := gateway.NewX509Identity(mspID, string(signingIdentity.EnrollmentCertificate()), string(key))
 
 	err = wallet.Put(enrollID, identity)
 	if err != nil {
 		log.Error(err)
 	}
+
 }
 
-func invokeCCgw(configFilePath, channelName, userName, mspID, chaincodeName, fcn string, params []string) {
+func queryCCgw(configFilePath, channelName, userName, mspID, chaincodeName, fcn string) {
+
 	configBackend := config.FromFile(configFilePath)
 	sdk, err := fabsdk.New(configBackend)
 	if err != nil {
 		log.Error(err)
-		return
 	}
 
 	wallet, err := gateway.NewFileSystemWallet(fmt.Sprintf("wallet/%s", mspID))
-	if err != nil {
-		log.Error("Failed to create wallet: %s", err)
-		return
-	}
 
-	gw, err := gateway.Connect(gateway.WithSDK(sdk), gateway.WithUser(userName), gateway.WithIdentity(wallet, userName))
+	gw, err := gateway.Connect(
+		gateway.WithSDK(sdk),
+		gateway.WithUser(userName),
+		gateway.WithIdentity(wallet, userName),
+	)
+
 	if err != nil {
 		log.Error("Failed to create new Gateway: %s", err)
-		return
 	}
 	defer gw.Close()
-
 	nw, err := gw.GetNetwork(channelName)
 	if err != nil {
 		log.Error("Failed to get network: %s", err)
-		return
 	}
 
 	contract := nw.GetContract(chaincodeName)
-	resp, err := contract.SubmitTransaction(fcn, params...)
+
+	resp, err := contract.EvaluateTransaction(fcn)
+
 	if err != nil {
 		log.Error("Failed submit transaction: %s", err)
-		return
-	}
-	log.Info(resp)
-}
-
-func queryCCgw(configFilePath, channelName, userName, mspID, chaincodeName, fcn string, args []string) {
-	configBackend := config.FromFile(configFilePath)
-	sdk, err := fabsdk.New(configBackend)
-	if err != nil {
-		log.Error(err)
-		return
-	}
-
-	wallet, err := gateway.NewFileSystemWallet(fmt.Sprintf("wallet/%s", mspID))
-	if err != nil {
-		log.Error("Failed to create wallet: %s", err)
-		return
-	}
-
-	gw, err := gateway.Connect(gateway.WithSDK(sdk), gateway.WithUser(userName), gateway.WithIdentity(wallet, userName))
-	if err != nil {
-		log.Error("Failed to create new Gateway: %s", err)
-		return
-	}
-	defer gw.Close()
-
-	nw, err := gw.GetNetwork(channelName)
-	if err != nil {
-		log.Error("Failed to get network: %s", err)
-		return
-	}
-
-	contract := nw.GetContract(chaincodeName)
-	resp, err := contract.EvaluateTransaction(fcn, args...)
-	if err != nil {
-		log.Error("Failed submit transaction: %s", err)
-		return
 	}
 	log.Info(string(resp))
-}
 
-// ConvertTimestampToUnix converts a timestamp string to a Unix time string
-func ConvertTimestampToUnix(timestamp string) (string, error) {
-	layout := "2006-01-02 15:04:05.000"
-	t, err := time.Parse(layout, timestamp)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse timestamp: %w", err)
-	}
-	return fmt.Sprintf("%d", t.Unix()), nil
-}
-
-// SanitizeFloatString removes invalid characters from a float string
-func SanitizeFloatString(input string) (string, error) {
-	// Remove any commas or other invalid characters
-	cleaned := strings.ReplaceAll(input, ".", "")
-	cleaned = strings.ReplaceAll(cleaned, ",", ".")
-	if _, err := strconv.ParseFloat(cleaned, 64); err != nil {
-		return "", fmt.Errorf("invalid float string: %s", input)
-	}
-	return cleaned, nil
 }
 
 func randomString(length int) string {
@@ -344,4 +354,25 @@ func ReadCSV() ([]string, []string, []string, []string, []string, []string, []st
 	}
 
 	return timestamps, lats, lons, vehicleSpeeds, accelX, accelY, accelZ, nil
+}
+
+// ConvertTimestampToUnix converts a timestamp string to a Unix time string
+func ConvertTimestampToUnix(timestamp string) (string, error) {
+	layout := "2006-01-02 15:04:05.000"
+	t, err := time.Parse(layout, timestamp)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse timestamp: %w", err)
+	}
+	return fmt.Sprintf("%d", t.Unix()), nil
+}
+
+// SanitizeFloatString removes invalid characters from a float string
+func SanitizeFloatString(input string) (string, error) {
+	// Remove any commas or other invalid characters
+	cleaned := strings.ReplaceAll(input, ".", "")
+	cleaned = strings.ReplaceAll(cleaned, ",", ".")
+	if _, err := strconv.ParseFloat(cleaned, 64); err != nil {
+		return "", fmt.Errorf("invalid float string: %s", input)
+	}
+	return cleaned, nil
 }
