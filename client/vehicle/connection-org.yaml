@@ -6,22 +6,22 @@ certificateAuthorities:
       enrollSecret: enrollpw
     tlsCACerts:
       pem:
-        - |
-          -----BEGIN CERTIFICATE-----
-          MIICZTCCAgugAwIBAgIRAM5OqttIdSklJ0e0x1tUXn4wCgYIKoZIzj0EAwIwUjET
-          MBEGA1UEBhMKQ2FsaWZvcm5pYTEJMAcGA1UEBxMAMQkwBwYDVQQJEwAxFDASBgNV
-          BAoTC0h5cGVybGVkZ2VyMQ8wDQYDVQQLEwZGYWJyaWMwHhcNMjQxMDE2MjEwODQx
-          WhcNMzQxMDE3MjEwODQxWjBSMRMwEQYDVQQGEwpDYWxpZm9ybmlhMQkwBwYDVQQH
-          EwAxCTAHBgNVBAkTADEUMBIGA1UEChMLSHlwZXJsZWRnZXIxDzANBgNVBAsTBkZh
-          YnJpYzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABN0NmpKMdr01kMP9u67lhAzZ
-          pJNeaMMJmJYmsFHELnPmOwFXx5rBP+UOcoy1O7IrJOFlIQEcl3+q400Ijonz3uqj
-          gcEwgb4wDgYDVR0PAQH/BAQDAgGmMB0GA1UdJQQWMBQGCCsGAQUFBwMCBggrBgEF
-          BQcDATAPBgNVHRMBAf8EBTADAQH/MCkGA1UdDgQiBCCBQIARR7TUN1lDQthie4hs
-          c7QMiroydIINb/YQuz3cODBRBgNVHREESjBIgglsb2NhbGhvc3SCCmlubWV0cm8t
-          Y2GCEmlubWV0cm8tY2EuZGVmYXVsdIIVaW5tZXRyby1jYS5sb2NhbGhvLnN0hwR/
-          AAABMAoGCCqGSM49BAMCA0gAMEUCIEpIODB0v5XrUE+seOVLzOAJEQbOPClqSCsZ
-          y9Btnn4jAiEA9XChbfBWgEGBZ/6WPp9+wcKnNWyCWLaJ+RfJ0sY88eQ=
-          -----END CERTIFICATE-----
+      - |
+        -----BEGIN CERTIFICATE-----
+        MIICZDCCAgqgAwIBAgIQZ88eRpl6vL1Fd9pQFQE6yzAKBggqhkjOPQQDAjBSMRMw
+        EQYDVQQGEwpDYWxpZm9ybmlhMQkwBwYDVQQHEwAxCTAHBgNVBAkTADEUMBIGA1UE
+        ChMLSHlwZXJsZWRnZXIxDzANBgNVBAsTBkZhYnJpYzAeFw0yNDEyMTIxNzEyMTJa
+        Fw0zNDEyMTMxNzEyMTJaMFIxEzARBgNVBAYTCkNhbGlmb3JuaWExCTAHBgNVBAcT
+        ADEJMAcGA1UECRMAMRQwEgYDVQQKEwtIeXBlcmxlZGdlcjEPMA0GA1UECxMGRmFi
+        cmljMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEur0V63ae2PUMOgz1I0EhooFd
+        45rHIniCE1YsrXuhoCxmA4k3XpKwdTXWV22UNocSvUYiATBzpvgtzriz7Jp40aOB
+        wTCBvjAOBgNVHQ8BAf8EBAMCAaYwHQYDVR0lBBYwFAYIKwYBBQUHAwIGCCsGAQUF
+        BwMBMA8GA1UdEwEB/wQFMAMBAf8wKQYDVR0OBCIEINwtGkvszCBZGMx3Yy7QUKny
+        Rdi5ILc3uVootK+OHfrlMFEGA1UdEQRKMEiCCWxvY2FsaG9zdIIKaW5tZXRyby1j
+        YYISaW5tZXRyby1jYS5kZWZhdWx0ghVpbm1ldHJvLWNhLmxvY2FsaG8uc3SHBH8A
+        AAEwCgYIKoZIzj0EAwIDSAAwRQIgQj3yQptUnp6khYTIFj358/5i3PjIjL88i6CJ
+        MoVu5AUCIQCTWUwlVZBQPB3u3jy+UvjfkW1aTiVZvO4F2xfjupke7w==
+        -----END CERTIFICATE-----
     url: https://inmetro-ca.localho.st:443
   ord-ca.default:
     caName: ca
@@ -30,27 +30,27 @@ certificateAuthorities:
       enrollSecret: enrollpw
     tlsCACerts:
       pem:
-        - |
-          -----BEGIN CERTIFICATE-----
-          MIICWjCCAf+gAwIBAgIRAPlcw5MdNHfyGHxsTse61g0wCgYIKoZIzj0EAwIwUjET
-          MBEGA1UEBhMKQ2FsaWZvcm5pYTEJMAcGA1UEBxMAMQkwBwYDVQQJEwAxFDASBgNV
-          BAoTC0h5cGVybGVkZ2VyMQ8wDQYDVQQLEwZGYWJyaWMwHhcNMjQxMDE2MjExMDQw
-          WhcNMzQxMDE3MjExMDQwWjBSMRMwEQYDVQQGEwpDYWxpZm9ybmlhMQkwBwYDVQQH
-          EwAxCTAHBgNVBAkTADEUMBIGA1UEChMLSHlwZXJsZWRnZXIxDzANBgNVBAsTBkZh
-          YnJpYzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABFxwRJfA6pWXJLEIdzNjJJYL
-          ue0/OzWm59EGtdbWtHZZ3QDTCTs6R7MtMTsO6ffAogJAnDCsiOS5dkRD2Yv5uRuj
-          gbUwgbIwDgYDVR0PAQH/BAQDAgGmMB0GA1UdJQQWMBQGCCsGAQUFBwMCBggrBgEF
-          BQcDATAPBgNVHRMBAf8EBTADAQH/MCkGA1UdDgQiBCAT5uc5Zjs2WekhvHs2LurL
-          ca0YL3y+sy3fshPXtpthBzBFBgNVHREEPjA8gglsb2NhbGhvc3SCBm9yZC1jYYIO
-          b3JkLWNhLmRlZmF1bHSCEW9yZC1jYS5sb2NhbGhvLnN0hwR/AAABMAoGCCqGSM49
-          BAMCA0kAMEYCIQD0CxZmgwD/cbcmVDMgdEPw/DPBBr4SBeDevWHJEtW4fgIhAOaj
-          3lZjqk91RWWIfkBHx9EjSIJypCMeUgqf3M/Wk8Km
-          -----END CERTIFICATE-----
+      - |
+        -----BEGIN CERTIFICATE-----
+        MIICWTCCAf+gAwIBAgIRAJZ5v6Wcn12rp/Wa4Ngk4dowCgYIKoZIzj0EAwIwUjET
+        MBEGA1UEBhMKQ2FsaWZvcm5pYTEJMAcGA1UEBxMAMQkwBwYDVQQJEwAxFDASBgNV
+        BAoTC0h5cGVybGVkZ2VyMQ8wDQYDVQQLEwZGYWJyaWMwHhcNMjQxMjEyMTcxNTI1
+        WhcNMzQxMjEzMTcxNTI1WjBSMRMwEQYDVQQGEwpDYWxpZm9ybmlhMQkwBwYDVQQH
+        EwAxCTAHBgNVBAkTADEUMBIGA1UEChMLSHlwZXJsZWRnZXIxDzANBgNVBAsTBkZh
+        YnJpYzBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABGt9X+QPkzphE+QPVMed1IqB
+        hRjEfT7++Y5IglOqU5BvubgHRXP0C4u31UTffZcTJ1BCLVnFyDc+8prJ9GOs8qej
+        gbUwgbIwDgYDVR0PAQH/BAQDAgGmMB0GA1UdJQQWMBQGCCsGAQUFBwMCBggrBgEF
+        BQcDATAPBgNVHRMBAf8EBTADAQH/MCkGA1UdDgQiBCAs+nygGzrarrrLXQwBZkmn
+        2Gh1m3vC5H9YtUYbZmljKDBFBgNVHREEPjA8gglsb2NhbGhvc3SCBm9yZC1jYYIO
+        b3JkLWNhLmRlZmF1bHSCEW9yZC1jYS5sb2NhbGhvLnN0hwR/AAABMAoGCCqGSM49
+        BAMCA0gAMEUCIFxUBEykduK3FZjIBdmtmxse6jNCqsKrLog8X0+J/UcnAiEA04h6
+        sbWw5Lo0yloHAIk2crsMREiBEk+InuDURmSpd/g=
+        -----END CERTIFICATE-----
     url: https://ord-ca.localho.st:443
 channels:
   demo:
     orderers:
-      - ord-node0.default
+    - ord-node0.default
     peers:
       inmetro-peer0.default:
         chaincodeQuery: true
@@ -68,61 +68,61 @@ orderers:
     tlsCACerts:
       pem: |
         -----BEGIN CERTIFICATE-----
-        MIICRTCCAeugAwIBAgIQQKoyHqkXr9ORMhC5I3O6BjAKBggqhkjOPQQDAjBtMQsw
+        MIICRjCCAeygAwIBAgIRAOKA+xigDlj1SEhk/k3jfnIwCgYIKoZIzj0EAwIwbTEL
+        MAkGA1UEBhMCRVMxETAPBgNVBAcTCEFsaWNhbnRlMREwDwYDVQQJEwhBbGljYW50
+        ZTEZMBcGA1UEChMQS3VuZyBGdSBTb2Z0d2FyZTENMAsGA1UECxMEVGVjaDEOMAwG
+        A1UEAxMFdGxzY2EwHhcNMjQxMjEyMTcxNTI1WhcNMzQxMjEzMTcxNTI1WjBtMQsw
         CQYDVQQGEwJFUzERMA8GA1UEBxMIQWxpY2FudGUxETAPBgNVBAkTCEFsaWNhbnRl
         MRkwFwYDVQQKExBLdW5nIEZ1IFNvZnR3YXJlMQ0wCwYDVQQLEwRUZWNoMQ4wDAYD
-        VQQDEwV0bHNjYTAeFw0yNDEwMTYyMTEwNDBaFw0zNDEwMTcyMTEwNDBaMG0xCzAJ
-        BgNVBAYTAkVTMREwDwYDVQQHEwhBbGljYW50ZTERMA8GA1UECRMIQWxpY2FudGUx
-        GTAXBgNVBAoTEEt1bmcgRnUgU29mdHdhcmUxDTALBgNVBAsTBFRlY2gxDjAMBgNV
-        BAMTBXRsc2NhMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE4Ocm8j5/ZsGOZVO6
-        wMd21/fvA9Ilg7ZYMVitnWIO0KQEGCM/u4zlq4iAK9ddNjrarYCOs8TzdrOH9uSq
-        bZM4ZaNtMGswDgYDVR0PAQH/BAQDAgGmMB0GA1UdJQQWMBQGCCsGAQUFBwMCBggr
-        BgEFBQcDATAPBgNVHRMBAf8EBTADAQH/MCkGA1UdDgQiBCCVgC2tMUtkehcYU6wP
-        ZtGABWa4jLBsTvCUIt2EK5vLeTAKBggqhkjOPQQDAgNIADBFAiAe8nPykFSykdf/
-        PuyHmcJxKsVLtwGnHf3Q9DTMfiC+igIhAJDbUyRMObhlXbHZ+fnFKMrl9qDENhEo
-        Y0aDjItzYBpL
+        VQQDEwV0bHNjYTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABLz3vG4jiig2auuH
+        cs+wfDPXK4tzDFcIydEJIv9ULGYXTu79RRuCXEuR3a/voe2QJvwD9ZA9TKGPIFCq
+        4H0Sk0ujbTBrMA4GA1UdDwEB/wQEAwIBpjAdBgNVHSUEFjAUBggrBgEFBQcDAgYI
+        KwYBBQUHAwEwDwYDVR0TAQH/BAUwAwEB/zApBgNVHQ4EIgQgRgYHtbqK3NzM9q1O
+        6t0UDAzT4Ygv14XNQp+/uZkxVR8wCgYIKoZIzj0EAwIDSAAwRQIhAKCl1T3WWfmb
+        oabJUY8fGXD9QbUiZXqW9P/X6jjnnwFfAiBE26Ys6RFaRI55MQR0rDWiVPy9oRFw
+        lJW/V3LLNlm6hA==
         -----END CERTIFICATE-----
     url: grpcs://orderer0-ord.localho.st:443
 organizations:
   INMETROMSP:
+    certificateAuthorities:
+    - inmetro-ca.default
     cryptoPath: /tmp/cryptopath
     mspid: INMETROMSP
-    certificateAuthorities:
-      - inmetro-ca.default
     orderers: []
     peers:
-      - inmetro-peer0.default
+    - inmetro-peer0.default
     users:
       admin:
         cert:
           pem: |
             -----BEGIN CERTIFICATE-----
-            MIICUzCCAfmgAwIBAgIUG5AYJ+DkLj1OBtofOuPXSiPFZZMwCgYIKoZIzj0EAwIw
+            MIICUzCCAfmgAwIBAgIUHTsOVC3Ej9AscOrgtaFigVyXYh4wCgYIKoZIzj0EAwIw
             ajELMAkGA1UEBhMCRVMxETAPBgNVBAcTCEFsaWNhbnRlMREwDwYDVQQJEwhBbGlj
             YW50ZTEZMBcGA1UEChMQS3VuZyBGdSBTb2Z0d2FyZTENMAsGA1UECxMEVGVjaDEL
-            MAkGA1UEAxMCY2EwHhcNMjQxMDE2MjEwODQxWhcNMjUxMDE3MjEyMTAwWjAgMQ4w
+            MAkGA1UEAxMCY2EwHhcNMjQxMjEyMTcxMjEyWhcNMjUxMjEzMTcxOTAwWjAgMQ4w
             DAYDVQQLEwVhZG1pbjEOMAwGA1UEAxMFYWRtaW4wWTATBgcqhkjOPQIBBggqhkjO
-            PQMBBwNCAATq89hHJMl8DLmgS4FylR0VUF1l3salhJfnIAV4c0x5CihL6414SfXM
-            0VYJMgC+0wflzxcTOaLWMxZ5PWeP2MSho4HGMIHDMA4GA1UdDwEB/wQEAwIHgDAM
-            BgNVHRMBAf8EAjAAMB0GA1UdDgQWBBSIB1B+py5ylm+1sGy6d0P7FahaojArBgNV
-            HSMEJDAigCAv0tAiqsLqBudt6aVmsiKHiCPiy/XixE4V62QKQ1GfOjBXBggqAwQF
+            PQMBBwNCAARJzDUXbIkRqfBCoVWGKrWHb8ZN59sG2HAZ0sAdAbZla3qsSlDc46MS
+            eTxUf4id476gDTjAptrPakqMfcHES1Cio4HGMIHDMA4GA1UdDwEB/wQEAwIHgDAM
+            BgNVHRMBAf8EAjAAMB0GA1UdDgQWBBT9w8BFsuhJz94gn3xKKyBddCRwpDArBgNV
+            HSMEJDAigCBWaXuRQUjERt0RE+g2CV7thLpyJDI4QjSJQeQjqgUbDzBXBggqAwQF
             BgcIAQRLeyJhdHRycyI6eyJoZi5BZmZpbGlhdGlvbiI6IiIsImhmLkVucm9sbG1l
             bnRJRCI6ImFkbWluIiwiaGYuVHlwZSI6ImFkbWluIn19MAoGCCqGSM49BAMCA0gA
-            MEUCIQDQmV8ItJXMoNRU/jsdsKdaSxNk4jKh4n0PPq7S2T3leQIgXKd8ji1EqME6
-            I8bO2u2CZJy144T2s6WrKFnIq6oyn4s=
+            MEUCIQDDSje8GL+38gyxYM+MZztR5l6QLToXt/ruywgCeL7t6gIgMdwpKC6o6WN/
+            3dV6INVGkJqjoPnHwlw6f/DN9R/12Ko=
             -----END CERTIFICATE-----
         key:
           pem: |
             -----BEGIN PRIVATE KEY-----
-            MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgxAr8heK/Mc37YYE5
-            QUZFYIurmkC8ASJsUkXdj8xdFy6hRANCAATq89hHJMl8DLmgS4FylR0VUF1l3sal
-            hJfnIAV4c0x5CihL6414SfXM0VYJMgC+0wflzxcTOaLWMxZ5PWeP2MSh
+            MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgCMOxjEVAjvH8GUEB
+            E9pacGONY5/54ivjRjEjpAlDEMShRANCAARJzDUXbIkRqfBCoVWGKrWHb8ZN59sG
+            2HAZ0sAdAbZla3qsSlDc46MSeTxUf4id476gDTjAptrPakqMfcHES1Ci
             -----END PRIVATE KEY-----
   OrdererMSP:
     cryptoPath: /tmp/cryptopath
     mspid: OrdererMSP
     orderers:
-      - ord-node0.default
+    - ord-node0.default
     peers: []
     users: {}
 peers:
@@ -132,19 +132,19 @@ peers:
     tlsCACerts:
       pem: |
         -----BEGIN CERTIFICATE-----
-        MIICRjCCAeygAwIBAgIRAPJ/iaiEYCEZJArI+QoSYFkwCgYIKoZIzj0EAwIwbTEL
-        MAkGA1UEBhMCRVMxETAPBgNVBAcTCEFsaWNhbnRlMREwDwYDVQQJEwhBbGljYW50
-        ZTEZMBcGA1UEChMQS3VuZyBGdSBTb2Z0d2FyZTENMAsGA1UECxMEVGVjaDEOMAwG
-        A1UEAxMFdGxzY2EwHhcNMjQxMDE2MjEwODQxWhcNMzQxMDE3MjEwODQxWjBtMQsw
+        MIICRTCCAeugAwIBAgIQQZsFr9Ur/QoFxLkk2VixFjAKBggqhkjOPQQDAjBtMQsw
         CQYDVQQGEwJFUzERMA8GA1UEBxMIQWxpY2FudGUxETAPBgNVBAkTCEFsaWNhbnRl
         MRkwFwYDVQQKExBLdW5nIEZ1IFNvZnR3YXJlMQ0wCwYDVQQLEwRUZWNoMQ4wDAYD
-        VQQDEwV0bHNjYTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABDEaJ5FvMoe8cmFe
-        ubNGZFVXM3R07djNtaaN+nV8Q++FqQ7FzdufVazTqjsOZ5QWQgiQzOvSAREvM6ts
-        uHSF81qjbTBrMA4GA1UdDwEB/wQEAwIBpjAdBgNVHSUEFjAUBggrBgEFBQcDAgYI
-        KwYBBQUHAwEwDwYDVR0TAQH/BAUwAwEB/zApBgNVHQ4EIgQgcpyRD6d7TcC+kfVy
-        09+zIrmGY/2LAmBU/BNQIkB/tOkwCgYIKoZIzj0EAwIDSAAwRQIhAO75R6iT9HCo
-        jCT/ipcHPF5A8z5Khr/WnTmHMg9BOwWQAiATJ1BzJrjBfjebaWPixcCHtQs/XfD6
-        7zmTMwnkkm/GRg==
+        VQQDEwV0bHNjYTAeFw0yNDEyMTIxNzEyMTJaFw0zNDEyMTMxNzEyMTJaMG0xCzAJ
+        BgNVBAYTAkVTMREwDwYDVQQHEwhBbGljYW50ZTERMA8GA1UECRMIQWxpY2FudGUx
+        GTAXBgNVBAoTEEt1bmcgRnUgU29mdHdhcmUxDTALBgNVBAsTBFRlY2gxDjAMBgNV
+        BAMTBXRsc2NhMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAENiTif7BPgc0JDpKq
+        Qn2n6zizW/Or0Ef4PZj9t2NPI8NRc71xUCpTGY5EX3EZMYIj6ZPMhFwD7c/MWAP9
+        bm7XeKNtMGswDgYDVR0PAQH/BAQDAgGmMB0GA1UdJQQWMBQGCCsGAQUFBwMCBggr
+        BgEFBQcDATAPBgNVHRMBAf8EBTADAQH/MCkGA1UdDgQiBCA+9n8Ag1kgOMhOkarD
+        XqdH7EFAZKIKkMigRAaCDz5HXDAKBggqhkjOPQQDAgNIADBFAiAMykn+TIyxvqzF
+        BexPg+00rIqaliJsTweAX1HyU8nT5QIhAPZnASbqHBLketC8fYp2Hz0eIZkdiwUq
+        BVIke6qslmpN
         -----END CERTIFICATE-----
     url: grpcs://peer0-inmetro.localho.st:443
 version: 1.0.0
