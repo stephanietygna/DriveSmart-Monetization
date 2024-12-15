@@ -3,27 +3,24 @@ DriveSmart-Monetization promotes safe driving through behavioral analysis and mo
 
 # Hyperledger Fabric Operator
 
-## Funções do Operator
+## Features
 
-- [x] Criação de certificates authorities (CA)
-- [x] Criação de peers
-- [x] Criação de ordering services
-- [x] Criação de recursos sem modificação manual do material criptográfico
-- [x] Roteamento de domínio com SNI usando Istio 
-- [x] Execução de chaincode como chaincode externo via Kubernetes
-- [x] Suporte a Hyperledger Fabric 2.3+
-- [x] Gerenciamento de genesis para Ordering Services
+- [x] Create certificates authorities (CA)
+- [x] Create peers
+- [x] Create ordering services
+- [x] Create resources without manual provisioning of cryptographic material
+- [x] Domain routing with SNI using Istio
+- [x] Run chaincode as external chaincode in Kubernetes
+- [x] Support Hyperledger Fabric 2.3+ and 3.0
+- [x] Managed genesis for Ordering services
 - [x] E2E testing including the execution of chaincodes in KIND
-- [x] Renovação de certificados
+- [x] Renewal of certificates
 
 
-Recursos:
-- [Hyperledger Fabric build ARM](https://www.polarsparc.com/xhtml/Hyperledger-ARM-Build.html)
-- [Repositório Oficial do Operator](https://github.com/hyperledger/bevel-operator-fabric)
 
 Requisitos:
 
-- Linux (testado com Ubuntu 22.04)
+- Linux (tested with Ubuntu 22.04)
 - [Kubectl](https://kubernetes.io/pt-br/docs/tasks/tools/install-kubectl-linux/)
 - [Krew](https://krew.sigs.k8s.io/)
 - [KinD](https://kind.sigs.k8s.io/) ou [K3d](https://k3d.io/v5.6.0/)
@@ -33,7 +30,7 @@ Requisitos:
 - [Docker](https://docs.docker.com/get-docker/)
 
 
-Para instalar todos os requisitos automaticamente, use o seguinte script
+Install requirements automatically with the script
 
 ```bash
 chmod 777 install.sh
@@ -42,49 +39,31 @@ chmod 777 install.sh
 
 ## Script network.sh
 
-Este script possui os seguintes comandos:
-
 ```bash
-    echo "'up' - Instancia uma rede predefinida"
-    echo "'chaincode <nome do chaincode>' - Realiza o deploy do chaincode"
-    echo "'operator' - Inicia o Operator UI e o Operator API"
-    echo "'upgrade' <nome do chaincode> <versao> <sequencia>- Faz o upgrade do chaincode"
-    echo "'down' - Destrói o cluster Kubernetes e todos os recursos criados"
-    echo "'help' - Mostra alguns comandos que podem ajudar a diagnosticar problemas na rede"
+    echo "'up' - Starts the network"
+    echo "'chaincode <name>' - Installs chaincode"
+    echo "'upgrade' <name> <version> <sequence>- upgrade chaincode"
+    echo "'down' -Destroys Kubernetes cluster"
+    echo "'help' - Commands help"
 ```
 
 # Tutorial
 Atualmente, há duas versões sendo utilizadas
 
-- 2.5+, que suporta Chaincode As a Service (CCAS)
-- 2.4.6, que suporta chaincode local
-
-Para testar a versão 2.5+, siga as instruções tutorial na pasta [ccas](ccas).
-
-O tutorial a seguir utiliza a versão 2.4.6, que suporta chaincode local. Se a versão 2.5+ eventualmente obter suporte para chaincode local, o tutorial será atualizado.
-
-Uma rede com a seguinte estrutura será instanciada neste tutorial:
-
-- 1 Organização
-- 1 Peer (2.4.6)
-- 1 orderer
-
-Além do chaincode e cliente.
-Também é possível levantar esta rede predefinida com o comando ```network.sh up```.
-
-É possível customizar comandos e modificar a rede conforme a sua necessidade.
-
 ## 1. Criar Cluster Kubernetes
 
-Para começar o deploy da rede Fabric é necessário criar um cluster Kubernetes. Será utilizado aqui o KinD.
+To start deploying our red fabric we have to have a Kubernetes cluster. For this we will use KinD.
 
-Certifique-se de ter as seguintes portas disponíveis antes de começar:
+Ensure you have these ports available before creating the cluster:
 - 80
 - 443
 
-### Usando KinD
+If these ports are not available this tutorial will not work.
+
+### Using KinD
 
 ```bash
+mkdir resources
 cat << EOF > resources/kind-config.yaml
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
@@ -105,8 +84,7 @@ export DATABASE=couchdb
 ```
 
 
-## 2. Instalação do Istio
-Instale o Istio no cluster Kubernetes
+## 2. Istio install
 
 ```bash
 
@@ -177,7 +155,7 @@ spec:
 EOF
 ```
 
-### Configurar DNS Interno
+### Internal DNS
 
 ```bash
 kubectl apply -f - <<EOF
@@ -218,28 +196,24 @@ EOF
 
 ## 3. Instalar o HLF Operator
 
-Nesta etapa instalaremos o operador Kubernetes para o Fabric. Isso irá instalar:
+In this step we are going to install the kubernetes operator for Fabric, this will install:
 
 - CRD (Custom Resource Definitions) to deploy Certification Fabric Peers, Orderers and Authorities
 - Deploy the program to deploy the nodes in Kubernetes
 
+To install helm: [https://helm.sh/docs/intro/install/](https://helm.sh/docs/intro/install/)
+
 ```bash
-# instalar localmente (quando a rede bloqueia, mas é uma versão antiga)
-helm install hlf-operator resources/hlf-operator-1.9.2.tgz
+helm repo add kfs https://kfsoftware.github.io/hlf-helm-charts --force-update
+
+helm install hlf-operator --version=1.11.1 -- kfs/hlf-operator
 ```
-
-
-### Instalar o plugin Kubectl
-
-Em caso de erro, verifique se o [Krew](https://krew.sigs.k8s.io/docs/user-guide/setup/install/) está intsalado.
-
-A seguir, instale o Kubectl com o seguinte comando:
 
 ```bash
 kubectl krew install hlf
 ```
 
-## 4. Deploy de organizações
+## 4. Deploy organizations
 
 ### Environment Variables for AMD (Default)
 
@@ -250,7 +224,7 @@ export ORDERER_VERSION=2.5.5
 export CA_IMAGE=hyperledger/fabric-ca
 export CA_VERSION=1.5.7
 ```
-### Criação do CA para INMETRO
+### INMETRO CA Creation
 
 ```bash
 
@@ -260,13 +234,13 @@ kubectl hlf ca create  --image=$CA_IMAGE --version=$CA_VERSION --storage-class=$
 kubectl wait --timeout=180s --for=condition=Running fabriccas.hlf.kungfusoftware.es --all
 ```
 
-Verifique se o CA foi implementado e funciona:
+Check if CA works
 
 ```bash
 curl -k https://inmetro-ca.localho.st:443/cainfo
 ```
 
-Registre um usuário peer no CA da Organização INMETRO
+Register peer user for INMETRO
 
 ```bash
 # register user in CA for peers
@@ -275,9 +249,7 @@ kubectl hlf ca register --name=inmetro-ca --user=peer --secret=peerpw --type=pee
 
 ```
 
-### Deploy de um peer para a organização INMETRO
-
-OBS: O peer a seguir não suporta [CCAS](ccas)
+### INMETRO peer creation
 
 ```bash
 export PEER_IMAGE=quay.io/kfsoftware/fabric-peer
@@ -294,22 +266,22 @@ kubectl wait --timeout=180s --for=condition=Running fabricpeers.hlf.kungfusoftwa
 
 ```
 
-Verifique se os peers foram implementados e funcionam:
+Check if peer works
 
 ```bash
 openssl s_client -connect peer0-inmetro.localho.st:443
 
 ```
 
-### Deploy de uma organização `Orderer`
+### Deploy Orderer
 
-para fazer o deploy de uma organização orderer, temos que:
+To deploy an `Orderer` organization we have to:
 
-1. Criar um certification authority (CA)
-2. Registrar usuário `orderer` com senha `ordererpw`
-3. Criar orderer
+1. Create a certification authority
+2. Register user `orderer` with password `ordererpw`
+3. Create orderer
 
-### Criar o CA
+### CA Creation
 
 ```bash
 kubectl hlf ca create  --image=$CA_IMAGE --version=$CA_VERSION --storage-class=$STORAGE_CLASS --capacity=1Gi --name=ord-ca \
@@ -318,20 +290,20 @@ kubectl hlf ca create  --image=$CA_IMAGE --version=$CA_VERSION --storage-class=$
 kubectl wait --timeout=180s --for=condition=Running fabriccas.hlf.kungfusoftware.es --all
 ```
 
-Verifique se a certificação foi implementada e funciona:
+Check if CA works
 
 ```bash
 curl -vik https://ord-ca.localho.st:443/cainfo
 ```
 
-### Registre o usuário `orderer`
+### Register `orderer` user
 
 ```bash
 kubectl hlf ca register --name=ord-ca --user=orderer --secret=ordererpw \
     --type=orderer --enroll-id enroll --enroll-secret=enrollpw --mspid=OrdererMSP --ca-url="https://ord-ca.localho.st:443"
 
 ```
-### Deploy de um orderer
+### Deploy orderer
 
 ```bash
   kubectl hlf ordnode create --image=$ORDERER_IMAGE --version=$ORDERER_VERSION \
@@ -342,8 +314,7 @@ kubectl hlf ca register --name=ord-ca --user=orderer --secret=ordererpw \
 kubectl wait --timeout=180s --for=condition=Running fabricorderernodes.hlf.kungfusoftware.es --all
 ```
 
-Verifique se os orderers funcionam:
-
+Check if orderer works
 ```bash
 kubectl get pods
 ```
@@ -353,11 +324,11 @@ openssl s_client -connect orderer0-ord.localho.st:443
 ```
 
 
-## Criar canal
+## Create channel
 
-Para criar o canal nós precisamos criar o "wallet secret", que irá conter as identidades usadas pelo bevel operator para gerenciar o canal
+To create the channel we need to first create the wallet secret, which will contain the identities used by the operator to manage the channel
 
-### Registrar e matricular identidade OrdererMSP
+### Register OrdererMSP identity 
 
 ```bash
   ## register OrdererMSP Identity
@@ -374,7 +345,7 @@ Para criar o canal nós precisamos criar o "wallet secret", que irá conter as i
 ```
 
 
-### Registrar e matricular identidade INMETROMSP
+### Register INMETROMSP idenitty
 
 ```bash
   ## register INMETROMSP Identity
@@ -387,7 +358,7 @@ Para criar o canal nós precisamos criar o "wallet secret", que irá conter as i
       --ca ca --mspid INMETROMSP --enroll-id admin --enroll-secret adminpw
 ```
 
-### Criando canal principal
+### Creating main channel
 
 ```bash
 export PEER_ORG_SIGN_CERT=$(kubectl get fabriccas inmetro-ca -o=jsonpath='{.status.ca_cert}')
@@ -473,7 +444,7 @@ EOF
 
 ```
 
-### Inserir peers do INMETRO no canal
+### Insert INMETRO peer in channel
 
 ```bash
 
@@ -506,55 +477,49 @@ ${ORDERER0_TLS_CERT}
 EOF
 ```
 
-# Instalação do Chaincode
+## Install a chaincode
 
-Caso queira testar o Chaincode As a Service, veja o tutorial em [ccas](ccas). Caso contrário, prossiga com a instalação do chaincode local a seguir.
+### Prepare connection string for a peer
 
-## Instalação do chaincode local fabcar
+To prepare the connection string, we have to:
 
-### Preparar string / arquivo de conexão para um peer
+1. Get connection string without users for organization Org1MSP and OrdererMSP
+2. Register a user in the certification authority for signing (register)
+3. Obtain the certificates using the previously created user (enroll)
+4. Attach the user to the connection string
 
-Para preparar a string de conexão, precisamos:
-
-1. Obter a string de conexão sem usuários para a organização Org1MSP e OrdererMSP
-2. Registre um usuário no CA para assinatura (registro)
-3. Obter os certificados usando o usuário criado no passo 2 (enroll)
-4. Anexar o usuário à string de conexão
-
-(Repetir 2, 3 e 4 para Org2)
 
 --------------
 
-1. Obter a string de conexão sem usuários para a organização Org1MSP e OrdererMSP
+1. Get connection string without users for organization Org1MSP and OrdererMSP
 
 ```bash
+mkdir resources
 kubectl hlf inspect -c=demo --output resources/network.yaml -o INMETROMSP -o OrdererMSP
 ```
 
-### Registrar usuário para INMETRO
 
-2. Registre um usuário no CA para assinatura (registro)
+2. Register a user in the certification authority for signing
 ```bash
 kubectl hlf ca register --name=inmetro-ca --user=admin --secret=adminpw --type=admin \
  --enroll-id enroll --enroll-secret=enrollpw --mspid INMETROMSP  
 ```
 
-3. Obter os certificados usando o usuário criado no passo 2 (enroll)
+3. Get the certificates using the user created above
 ```bash
 kubectl hlf ca enroll --name=inmetro-ca --user=admin --secret=adminpw --mspid INMETROMSP \
         --ca-name ca  --output resources/peer-inmetro.yaml
 ```
 
-4. Anexar o usuário à string de conexão
+4. Attach the user to the connection string
 ```bash
 kubectl hlf utils adduser --userPath=resources/peer-inmetro.yaml --config=resources/network.yaml --username=admin --mspid=INMETROMSP
 ```
 
-### Instalação do chaincode
-Com o arquivo de conexão preparado, vamos instalar o chaincode no peer que possua o atributo k8s-builder, como explicado no passo de deploy de peers
+### Chaincode installation
 
 ```bash
-export CHAINCODE_LABEL=fabcar
+export CHAINCODE_LABEL=vehicle
 
 kubectl hlf chaincode install --path=./chaincode/$CHAINCODE_LABEL \
     --config=resources/network.yaml --language=golang --label=$CHAINCODE_LABEL --user=admin --peer=inmetro-peer0.default
@@ -562,13 +527,13 @@ kubectl hlf chaincode install --path=./chaincode/$CHAINCODE_LABEL \
 # this can take 3-4 minutes
 ```
 
-Verificação de chaincodes instalados
+Check chaincode installation
 
 ```bash
 kubectl hlf chaincode queryinstalled --config=resources/network.yaml --user=admin --peer=inmetro-peer0.default
 ```
 
-### Aprovar chaincode
+### Approve chaincode
 
 ```bash
   export PACKAGE_ID=$(kubectl hlf chaincode calculatepackageid --path=chaincode/$CHAINCODE_LABEL --language=golang --label=$CHAINCODE_LABEL)
@@ -580,135 +545,34 @@ kubectl hlf chaincode approveformyorg --config=resources/network.yaml --user=adm
     --version "1.0" --sequence 1 --name=$CHAINCODE_LABEL \
     --policy="AND('INMETROMSP.member')" --channel=demo
 
-# Fazer o commit do chaincode
+#commit do chaincode
 
 kubectl hlf chaincode commit --config=resources/network.yaml --mspid=INMETROMSP --user=admin \
     --version "1.0" --sequence 1 --name=$CHAINCODE_LABEL \
     --policy="AND('INMETROMSP.member')" --channel=demo
 ```
 
-### Testar chaincode
+
+
+
+## Using  client:
+[In the client folder](client/vehicle), open connection-org.yaml, and copy the content from (resources)[resources/network.yaml] there. Then add the following:
+
+- In the client section, put "INMETROMSP"
+- Below INMETROMSP organization, put:
+```bash
+    certificateAuthorities:
+        - inmetro-ca.default
+```
+
+Then run the client with the command
 
 ```bash
-kubectl hlf chaincode invoke --config=resources/network.yaml \
-    --user=admin --peer=inmetro-peer0.default \
-    --chaincode=fabcar --channel=demo \
-    --fcn=InitLedger -a '[]'
+go run main.go
 ```
 
-### Fazer query de todos os assets
+## Cleanup the environment
 
 ```bash
-kubectl hlf chaincode query --config=resources/network.yaml \
-    --user=admin --peer=inmetro-peer0.default \
-    --chaincode=fabcar --channel=demo \
-    --fcn=QueryAllCars -a '[]'
-```
-
-## Fazendo upgrade de chaincode
-
-Para atualizar o chaincode, repita o mesmo proceso de instalação, alterando os valores dos parâmetros ```--version``` e ```---sequence```.
-Alternativamente, utilize variáveis de ambiente, como no exemplo a seguir:
-
-```bash
-export CC_VERSION="1.1"
-export CC_SEQUENCE=2
-
-kubectl hlf chaincode install --path=./chaincode/$CHAINCODE_LABEL \
-    --config=resources/network.yaml --language=golang --label=$CHAINCODE_LABEL --user=admin --peer=inmetro-peer0.default
-
-export PACKAGE_ID=$(kubectl hlf chaincode calculatepackageid --path=chaincode/$CHAINCODE_LABEL --language=golang --label=$CHAINCODE_LABEL)
-echo "PACKAGE_ID=$PACKAGE_ID"
-
-kubectl hlf chaincode approveformyorg --config=resources/network.yaml --user=admin --peer=inmetro-peer0.default \ 
-  --package-id=$PACKAGE_ID \ 
-  --version $CC_VERSION --sequence $CC_SEQUENCE --name=$CHAINCODE_LABEL \ 
-  --policy="AND('INMETROMSP.member')" --channel=demo
-
-kubectl hlf chaincode commit --config=resources/network.yaml --mspid=INMETROMSP --user=admin \ 
-    --version $CC_VERSION --sequence $CC_SEQUENCE --name=$CHAINCODE_LABEL \ 
-    --policy="AND('INMETROMSP.member')" --channel=demo
-
-```
-
-## Usando clientes:
-[Usando Clientes](client)
-
-
-# Operator UI
-
-O HLF Operator UI fornece uma interface gráfica para uma experiência de usuário mais conveniente. O Operator UI torna mais fácil o processo de criar, clonar, supervisionar, editar e deletar os nós de Peers, Orderers e CAs.
-
-Ele consiste de dois componentes
-
-#### Operator API
-Fornece acesso aos dados para serem exibidos pelo Operator UI
-
-- Canais
-- Peers
-- Orderer Nodes
-- Certificate Authorities
-
-#### Operator UI
-Interface gráfica que permite:
-
-- Criar peers
-- Criar CAs
-- Criar orderers
-- Renovar certificados
-
-### Levantando o Operator UI
-
-Primeiro deve-se levantar o Operator API
-```bash
-export API_URL=api-operator.localho.st # URL de acesso
-
-kubectl hlf operatorapi create --name=operator-api --namespace=default --hosts=$API_URL --ingress-class-name=istio
-```
-
-Agora, para levantar o Operator UI
-
-```bash
-export HOST=operator-ui.localho.st
-export API_URL="http://api-operator.localho.st/graphql"
-
-kubectl hlf operatorui create --name=operator-ui --namespace=default --hosts=$HOST --ingress-class-name=istio --api-url=$API_URL
-```
-
-Verifique se eles estão funcionando com o comando a seguir
-
-```
-kubectl get pods
-```
-
-Seus containeres devem estar com o estado "Running"
-
-## Acessando o Operator UI
-
-No navegador, insira a URL:
-
-operator-ui.localho.st
-
-## Finalizando
-A essa altura, você deve ter:
-
-
-- Um serviço de ordenação com 3 orderers e CA
-- Organização INMETRO com 1 peer e CA
-- Um canal chamado "demo"
-- Um chaincode instalado nos peers do INMETRO, aprovado e "commitado"
-
-## Derrubando o ambiente
-
-```bash
-kubectl delete fabricorderernodes.hlf.kungfusoftware.es --all-namespaces --all
-kubectl delete fabricpeers.hlf.kungfusoftware.es --all-namespaces --all
-kubectl delete fabriccas.hlf.kungfusoftware.es --all-namespaces --all
-kubectl delete fabricchaincode.hlf.kungfusoftware.es --all-namespaces --all
-kubectl delete fabricmainchannels --all-namespaces --all
-kubectl delete fabricfollowerchannels --all-namespaces --all
-kubectl delete fabricnetworkconfigs --all-namespaces --all
-kubectl delete fabricidentities --all-namespaces --all
-
-kind delete cluster
+./network.sh down
 ```
