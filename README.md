@@ -20,7 +20,7 @@ This project uses the Hyperledger Fabric Operator to manage Fabric components na
 - [x] Automatic certificate renewal
 
 
-Requirements
+## Requirements
 
 The following tools are required to run the project locally:
 
