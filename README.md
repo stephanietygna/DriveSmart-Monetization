@@ -68,99 +68,93 @@ If these ports are not available this tutorial will not work.
 ### Using KinD
 
 ```bash
-mkdir resources
+mkdir -p resources
 cat << EOF > resources/kind-config.yaml
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
 - role: control-plane
-  image: kindest/node:v1.25.8
-  extraPortMappings:
-  - containerPort: 30949
-    hostPort: 80
-  - containerPort: 30950
-    hostPort: 443
+image: kindest/node:v1.25.8
+extraPortMappings:
+- containerPort: 30949
+hostPort: 80
+- containerPort: 30950
+hostPort: 443
 EOF
 
-kind create cluster --config=./resources/kind-config.yaml
+
+kind create cluster --config=resources/kind-config.yaml
+
 
 export STORAGE_CLASS=standard
 export DATABASE=couchdb
 ```
 
 
-## 2. Istio Installation (Supported Method)
-This project uses Istio as a service mesh for ingress, mTLS, and SNI-based routing.
-The installation follows the official Istio installation method supported by version 1.28+.
+## 2. Instalação do Istio (SEM Istio Operator legado)
+⚠️ O comando istioctl operator init não existe mais nas versões atuais do Istio.
 
 ```bash
-istioctl install -y --set profile=default
+kubectl create namespace istio-system
+istioctl install -y
 ```
-E depois:
+Verifique:
 
 ```bash
 kubectl get pods -n istio-system
+kubectl get svc -n istio-system
 ```
+O serviço istio-ingressgateway deve estar exposto via NodePort (80 e 443).
 
-### Internal DNS
+## 3. DNS Interno (CoreDNS) 
 
 ```bash
+export CLUSTER_IP=$(kubectl get svc istio-ingressgateway -n istio-system -o jsonpath='{.spec.clusterIP}')
+
+
 kubectl apply -f - <<EOF
-kind: ConfigMap
 apiVersion: v1
+kind: ConfigMap
 metadata:
-  name: coredns
-  namespace: kube-system
+name: coredns
+namespace: kube-system
 data:
-  Corefile: |
-    .:53 {
-        errors
-        health {
-           lameduck 5s
-        }
-        rewrite name regex (.*)\.localho\.st istio-ingressgateway.istio-system.svc.cluster.local
-        hosts {
-            ${CLUSTER_IP} istio-ingressgateway.istio-system.svc.cluster.local
-            fallthrough
-        }
-        ready
-        kubernetes cluster.local in-addr.arpa ip6.arpa {
-           pods insecure
-           fallthrough in-addr.arpa ip6.arpa
-           ttl 30
-        }
-        prometheus :9153
-        forward . /etc/resolv.conf {
-           max_concurrent 1000
-        }
-        cache 30
-        loop
-        reload
-        loadbalance
-    }
+Corefile: |
+.:53 {
+errors
+health
+rewrite name regex (.*)\.localho\.st istio-ingressgateway.istio-system.svc.cluster.local
+hosts {
+${CLUSTER_IP} istio-ingressgateway.istio-system.svc.cluster.local
+fallthrough
+}
+kubernetes cluster.local in-addr.arpa ip6.arpa
+forward . /etc/resolv.conf
+cache 30
+}
 EOF
 ```
 
-## 3. Instalar o HLF Operator
+## 4. Instalação do Hyperledger Fabric Operator (HLF)
 
 In this step we are going to install the kubernetes operator for Fabric, this will install:
 
 - CRD (Custom Resource Definitions) to deploy Certification Fabric Peers, Orderers and Authorities
 - Deploy the program to deploy the nodes in Kubernetes
 
-To install helm: [https://helm.sh/docs/intro/install/](https://helm.sh/docs/intro/install/)
-
 ```bash
 helm repo add kfs https://kfsoftware.github.io/hlf-helm-charts --force-update
-
-helm install hlf-operator --version=1.11.1 -- kfs/hlf-operator
-```
-
-```bash
+helm install hlf-operator kfs/hlf-operator --version 1.11.1
 kubectl krew install hlf
 ```
 
-## 4. Deploy organizations
+Verifique:
+```bash
+kubectl get pods
+kubectl get crds | grep hlf
+```
+
+## 5. Deploy das Organizações Fabric
 
 ### Environment Variables for AMD (Default)
 
