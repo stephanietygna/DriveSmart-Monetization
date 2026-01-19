@@ -37,7 +37,7 @@ Install requirements automatically with the script
 
 ## Automatic Installation of Requirements
 ```bash
-chmod 777 install.sh
+chmod +x install.sh
 ./install.sh
 ```
 
