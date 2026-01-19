@@ -32,6 +32,7 @@ The following tools are required to run the project locally:
 - Helm
 - jq
 - Docker (required by KIND/K3d)
+- Go 1.18 or later (required to run the client application)
 Install requirements automatically with the script
 
 
@@ -53,7 +54,12 @@ The network.sh script provides commands to manage the Kubernetes-based Fabric ne
 ```
 
 # Tutorial
-Atualmente, há duas versões sendo utilizadas
+This tutorial supports two execution environments:
+- Kubernetes using KIND (recommended for local reproducibility)
+- Kubernetes using K3d (alternative setup)
+
+This document describes the KIND-based setup.
+
 
 ## 1. Criar Cluster Kubernetes
 
@@ -66,6 +72,11 @@ Ensure you have these ports available before creating the cluster:
 If these ports are not available this tutorial will not work.
 
 ### Using KinD
+
+⚠️ Kubernetes Version Compatibility
+
+This project requires Kubernetes v1.30 or later due to compatibility
+requirements of Istio 1.28+.
 
 ```bash
 mkdir -p resources
@@ -83,6 +94,9 @@ nodes:
     hostPort: 443
 EOF
 ```
+The following port mappings expose the Istio Ingress Gateway via NodePort
+to allow SNI-based routing for Fabric CAs, peers, and orderers over ports
+80 and 443.
 
 ```bash
 kind create cluster --config=resources/kind-config.yaml
@@ -95,7 +109,8 @@ export DATABASE=couchdb
 
 
 ## 2. Instalação do Istio (SEM Istio Operator legado)
-⚠️ O comando istioctl operator init não existe mais nas versões atuais do Istio.
+⚠️ The legacy `istioctl operator init` command has been removed in recent
+Istio versions and must not be used.
 
 ```bash
 kubectl create namespace istio-system
@@ -111,6 +126,9 @@ O serviço istio-ingressgateway deve estar exposto via NodePort (80 e 443).
 
 ## 3. DNS Interno (CoreDNS) 
 
+Warning: This step replaces the default CoreDNS configuration in KIND and
+is intended only for local experimentation.
+
 ```bash
 export CLUSTER_IP=$(kubectl get svc istio-ingressgateway -n istio-system -o jsonpath='{.spec.clusterIP}')
 
@@ -119,8 +137,8 @@ kubectl apply -f - <<EOF
 apiVersion: v1
 kind: ConfigMap
 metadata:
-name: coredns
-namespace: kube-system
+  name: coredns
+  namespace: kube-system
 data:
 Corefile: |
 .:53 {
@@ -285,7 +303,7 @@ To create the channel we need to first create the wallet secret, which will cont
 
   kubectl hlf identity create --name orderer-admin-tls --namespace default \
       --ca-name ord-ca --ca-namespace default \
-      --ca tlsca --mspid OrdererMSP --enroll-id admin --enroll-secret adminpw l # tls identity
+      --ca tlsca --mspid OrdererMSP --enroll-id admin --enroll-secret adminpw # tls identity
 ```
 
 
@@ -435,7 +453,7 @@ To prepare the connection string, we have to:
 
 --------------
 
-1. Get connection string without users for organization Org1MSP and OrdererMSP
+1. Get connection string without users for organization INMETROMSP and OrdererMSP
 
 ```bash
 mkdir resources
