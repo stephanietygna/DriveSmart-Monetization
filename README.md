@@ -41,14 +41,15 @@ chmod +x install.sh
 ./install.sh
 ```
 
-## Script network.sh
+## Network Management Script
+The network.sh script provides commands to manage the Kubernetes-based Fabric network:
 
 ```bash
-    echo "'up' - Starts the network"
-    echo "'chaincode <name>' - Installs chaincode"
-    echo "'upgrade' <name> <version> <sequence>- upgrade chaincode"
-    echo "'down' -Destroys Kubernetes cluster"
-    echo "'help' - Commands help"
+  'up'                     - Starts the Kubernetes network
+'chaincode <name>'       - Installs a chaincode
+'upgrade <name> <version> <sequence>' - Upgrades a chaincode
+'down'                   - Destroys the Kubernetes cluster
+'help'                   - Displays command help
 ```
 
 # Tutorial
