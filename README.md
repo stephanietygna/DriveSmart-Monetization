@@ -69,23 +69,26 @@ If these ports are not available this tutorial will not work.
 
 ```bash
 mkdir -p resources
+
 cat << EOF > resources/kind-config.yaml
 kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
 nodes:
 - role: control-plane
-image: kindest/node:v1.25.8
-extraPortMappings:
-- containerPort: 30949
-hostPort: 80
-- containerPort: 30950
-hostPort: 443
+  image: kindest/node:v1.30.0
+  extraPortMappings:
+  - containerPort: 30949
+    hostPort: 80
+  - containerPort: 30950
+    hostPort: 443
 EOF
+```
 
-
+```bash
 kind create cluster --config=resources/kind-config.yaml
+```
 
-
+```bash
 export STORAGE_CLASS=standard
 export DATABASE=couchdb
 ```
