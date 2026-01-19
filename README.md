@@ -1,37 +1,41 @@
 # DriveSmart-Monetization
-DriveSmart-Monetization promotes safe driving through behavioral analysis and monetization. It identifies harsh acceleration, sharp turns, and zig-zag patterns, rewarding drivers for safe practices and penalizing risky behaviors.
+DriveSmart-Monetization is a blockchain-based platform designed to promote safe driving through behavioral analysis and data monetization. The system analyzes vehicular telemetry data to identify driving patterns such as harsh acceleration, sharp turns, and zig-zag behavior, rewarding safe practices and penalizing risky behaviors.
+
+The solution is deployed on a Kubernetes-based infrastructure and leverages Hyperledger Fabric as a permissioned blockchain to ensure data immutability, auditability, and secure execution of smart contracts (chaincode). Istio is used as a service mesh to enable secure communication, traffic management, and domain routing via SNI.
+
+This repository provides scripts and resources to deploy the complete environment locally using KIND or K3d, focusing on reproducibility and experimentation.
 
 # Hyperledger Fabric Operator
+This project uses the Hyperledger Fabric Operator to manage Fabric components natively on Kubernetes, eliminating the need for manual cryptographic material provisioning.
 
 ## Features
-
-- [x] Create certificates authorities (CA)
-- [x] Create peers
-- [x] Create ordering services
-- [x] Create resources without manual provisioning of cryptographic material
+- [x] Creation and management of Certificate Authorities (CAs)
+- [x] Deployment of peers and ordering services
+- [x] Automatic provisioning of cryptographic material
 - [x] Domain routing with SNI using Istio
-- [x] Run chaincode as external chaincode in Kubernetes
-- [x] Support Hyperledger Fabric 2.3+ and 3.0
-- [x] Managed genesis for Ordering services
-- [x] E2E testing including the execution of chaincodes in KIND
-- [x] Renewal of certificates
+- [x] External chaincode execution in Kubernetes
+- [x] Support for Hyperledger Fabric 2.3+ and 3.0
+- [x] Managed genesis block for ordering services
+- [x] End-to-end testing, including chaincode execution on KIND
+- [x] Automatic certificate renewal
 
 
+Requirements
 
-Requisitos:
+The following tools are required to run the project locally:
 
-- Linux (tested with Ubuntu 22.04)
-- [Kubectl](https://kubernetes.io/pt-br/docs/tasks/tools/install-kubectl-linux/)
-- [Krew](https://krew.sigs.k8s.io/)
-- [KinD](https://kind.sigs.k8s.io/) ou [K3d](https://k3d.io/v5.6.0/)
-- [Istio](https://istio.io/latest/ ) 
-- [Helm](https://helm.sh/)
-- [JQ](https://jqlang.github.io/jq/download/)
-- [Docker](https://docs.docker.com/get-docker/)
-
-
+- Linux (tested on Ubuntu 22.04)
+- kubectl
+- Krew
+- KIND or K3d
+- Istio
+- Helm
+- jq
+- Docker (required by KIND/K3d)
 Install requirements automatically with the script
 
+
+## Automatic Installation of Requirements
 ```bash
 chmod 777 install.sh
 ./install.sh
